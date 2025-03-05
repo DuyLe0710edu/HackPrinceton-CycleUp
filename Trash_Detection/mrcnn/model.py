@@ -18,22 +18,27 @@ from collections import OrderedDict
 import multiprocessing
 import numpy as np
 import tensorflow as tf
-import keras
-import keras.backend as K
-import keras.layers as KL
-import keras.engine as KE
-import keras.models as KM
+# Enable eager execution for TensorFlow 2.x
+tf.compat.v1.enable_eager_execution()
+
+# Update Keras imports for TensorFlow 2.x
+from tensorflow import keras
+import tensorflow.keras.backend as K
+import tensorflow.keras.layers as KL
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Layer
 
 from mrcnn import utils
 
-# Requires TensorFlow 1.3+ and Keras 2.0.8+.
+# Requires TensorFlow 2.x
 from distutils.version import LooseVersion
-assert LooseVersion(tf.__version__) >= LooseVersion("1.3")
-assert LooseVersion(keras.__version__) >= LooseVersion('2.0.8')
+assert LooseVersion(tf.__version__) >= LooseVersion("2.0")
+assert LooseVersion(keras.__version__) >= LooseVersion('2.2.4')
 
-config = tf.ConfigProto()
+# Replace tf.ConfigProto with tf.compat.v1.ConfigProto
+config = tf.compat.v1.ConfigProto()
 config.gpu_options.allow_growth = True
-session = tf.Session(config=config)
+session = tf.compat.v1.Session(config=config)
 
 ############################################################
 #  Utility Functions
@@ -252,11 +257,10 @@ def clip_boxes_graph(boxes, window):
     y2 = tf.maximum(tf.minimum(y2, wy2), wy1)
     x2 = tf.maximum(tf.minimum(x2, wx2), wx1)
     clipped = tf.concat([y1, x1, y2, x2], axis=1, name="clipped_boxes")
-    clipped.set_shape((clipped.shape[0], 4))
     return clipped
 
 
-class ProposalLayer(KE.Layer):
+class ProposalLayer(Layer):
     """Receives anchor scores and selects a subset to pass as proposals
     to the second stage. Filtering is done based on anchor scores and
     non-max suppression to remove overlaps. It also applies bounding
@@ -345,7 +349,7 @@ def log2_graph(x):
     return tf.log(x) / tf.log(2.0)
 
 
-class PyramidROIAlign(KE.Layer):
+class PyramidROIAlign(Layer):
     """Implements ROI Pooling on multiple levels of the feature pyramid.
 
     Params:
@@ -623,7 +627,7 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     return rois, roi_gt_class_ids, deltas, masks
 
 
-class DetectionTargetLayer(KE.Layer):
+class DetectionTargetLayer(Layer):
     """Subsamples proposals and generates target box refinement, class_ids,
     and masks for each.
 
@@ -783,7 +787,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     return detections
 
 
-class DetectionLayer(KE.Layer):
+class DetectionLayer(Layer):
     """Takes classified proposal boxes and their bounding box deltas and
     returns the final detection boxes.
 
@@ -894,7 +898,7 @@ def build_rpn_model(anchor_stride, anchors_per_location, depth):
     input_feature_map = KL.Input(shape=[None, None, depth],
                                  name="input_rpn_feature_map")
     outputs = rpn_graph(input_feature_map, anchors_per_location, anchor_stride)
-    return KM.Model([input_feature_map], outputs, name="rpn_model")
+    return Model([input_feature_map], outputs, name="rpn_model")
 
 
 ############################################################
@@ -2031,7 +2035,7 @@ class MaskRCNN():
                        mrcnn_class_logits, mrcnn_class, mrcnn_bbox, mrcnn_mask,
                        rpn_rois, output_rois,
                        rpn_class_loss, rpn_bbox_loss, class_loss, bbox_loss, mask_loss]
-            model = KM.Model(inputs, outputs, name='mask_rcnn')
+            model = Model(inputs, outputs, name='mask_rcnn')
         else:
             # Network Heads
             # Proposal classifier and BBox regressor heads
@@ -2055,7 +2059,7 @@ class MaskRCNN():
                                               config.NUM_CLASSES,
                                               train_bn=config.TRAIN_BN)
 
-            model = KM.Model([input_image, input_image_meta, input_anchors],
+            model = Model([input_image, input_image_meta, input_anchors],
                              [detections, mrcnn_class, mrcnn_bbox,
                                  mrcnn_mask, rpn_rois, rpn_class, rpn_bbox],
                              name='mask_rcnn')
@@ -2106,39 +2110,84 @@ class MaskRCNN():
         # Conditional import to support versions of Keras before 2.2
         # TODO: remove in about 6 months (end of 2018)
         try:
-            from keras.engine import saving
+            from tensorflow.keras.engine import saving
+            from tensorflow.keras.utils import custom_object_scope
         except ImportError:
             # Keras before 2.2 used the 'topology' namespace.
-            from keras.engine import topology as saving
+            try:
+                from tensorflow.keras.engine import topology as saving
+                from tensorflow.keras.utils import custom_object_scope
+            except ImportError:
+                print("WARNING: Could not import standard TensorFlow Keras modules")
+                # Last resort fallback for older versions or standalone Keras
+                try:
+                    from keras.engine import saving
+                    from keras.utils import custom_object_scope
+                except ImportError:
+                    print("ERROR: Failed to import Keras modules. Please ensure TensorFlow 2.x is installed correctly.")
+                    raise
 
         if exclude:
             by_name = True
 
         if h5py is None:
             raise ImportError('`load_weights` requires h5py.')
-        f = h5py.File(filepath, mode='r')
-        if 'layer_names' not in f.attrs and 'model_weights' in f:
-            f = f['model_weights']
+            
+        print(f"Loading weights from: {filepath}")
+        
+        try:
+            f = h5py.File(filepath, mode='r')
+            if 'layer_names' not in f.attrs and 'model_weights' in f:
+                print("Using 'model_weights' group in weights file")
+                f = f['model_weights']
 
-        # In multi-GPU training, we wrap the model. Get layers
-        # of the inner model because they have the weights.
-        keras_model = self.keras_model
-        layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
-            else keras_model.layers
+            # In multi-GPU training, we wrap the model. Get layers
+            # of the inner model because they have the weights.
+            keras_model = self.keras_model
+            layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
+                else keras_model.layers
 
-        # Exclude some layers
-        if exclude:
-            layers = filter(lambda l: l.name not in exclude, layers)
+            # Exclude some layers
+            if exclude:
+                layers = filter(lambda l: l.name not in exclude, layers)
 
-        if by_name:
-            saving.load_weights_from_hdf5_group_by_name(f, layers)
-        else:
-            saving.load_weights_from_hdf5_group(f, layers)
-        if hasattr(f, 'close'):
-            f.close()
+            # Define custom objects to handle compatibility issues
+            custom_objects = {
+                'BatchNorm': BatchNorm,
+                'KL': KL,
+                'Layer': Layer,
+                'Model': Model,
+                'keras': keras
+            }
+            
+            print("Using custom_object_scope for compatibility")
+            with custom_object_scope(custom_objects):
+                if by_name:
+                    try:
+                        saving.load_weights_from_hdf5_group_by_name(f, layers)
+                    except Exception as e:
+                        print(f"Error in load_weights_from_hdf5_group_by_name: {e}")
+                        print("Trying direct keras_model load_weights as fallback...")
+                        keras_model.load_weights(filepath, by_name=True)
+                else:
+                    try:
+                        saving.load_weights_from_hdf5_group(f, layers)
+                    except Exception as e:
+                        print(f"Error in load_weights_from_hdf5_group: {e}")
+                        print("Trying direct keras_model load_weights as fallback...")
+                        keras_model.load_weights(filepath, by_name=False)
+                        
+            if hasattr(f, 'close'):
+                f.close()
+                
+            print("Weights loaded successfully!")
 
-        # Update the log directory
-        self.set_log_dir(filepath)
+            # Update the log directory
+            self.set_log_dir(filepath)
+            
+        except Exception as e:
+            print(f"ERROR loading weights: {e}")
+            raise
 
     def get_imagenet_weights(self):
         """Downloads ImageNet trained weights from Keras.

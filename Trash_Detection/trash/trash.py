@@ -21,6 +21,7 @@ import json
 import datetime
 import numpy as np
 import skimage.draw
+import tensorflow as tf
 
 # tingitud errorist: OMP: Error #15: Initializing libiomp5.dylib, but found libiomp5.dylib already initialized.
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -34,7 +35,7 @@ from mrcnn.config import Config
 from mrcnn import model as modellib, utils
 
 # Path to trained weights file
-COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "weights/mask_rcnn_coco.h5")
+COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 
 # Directory to save logs and model checkpoints, if not provided
 # through the command line argument --logs

@@ -1,4 +1,84 @@
-# Trash detection using Mask R-CNN
+# Trash Detection with Mask R-CNN
+
+This project uses Mask R-CNN to detect trash in images. The implementation is based on the [Matterport Mask R-CNN](https://github.com/matterport/Mask_RCNN) project, updated to work with TensorFlow 2.x.
+
+## Requirements
+
+- Python 3.8+
+- TensorFlow 2.x
+- NumPy
+- SciPy
+- Pillow
+- Matplotlib
+- scikit-image
+- OpenCV
+
+## Setup Instructions
+
+1. **Install Dependencies**
+
+   ```bash
+   pip install tensorflow numpy scipy Pillow matplotlib scikit-image opencv-python h5py imgaug IPython requests
+   ```
+
+2. **Download Model Weights**
+
+   Run the download script to get the COCO weights:
+
+   ```bash
+   python download_weights.py
+   ```
+
+   For the trash-specific weights, you'll need to either:
+   - Train the model yourself (see Training section below)
+   - Manually place pre-trained weights in the `weights` directory
+
+3. **Verify Setup**
+
+   Check that your environment is properly set up:
+
+   ```bash
+   python verify_setup.py
+   ```
+
+## Running Trash Detection
+
+1. **Using the Jupyter Notebook**
+
+   Open and run the Jupyter notebook:
+
+   ```bash
+   jupyter notebook Detect_trash_on_images.ipynb
+   ```
+
+2. **Preparing Test Images**
+
+   Place your test images in the `images` directory.
+
+## Training Your Own Model
+
+To train your own model:
+
+1. Prepare your dataset in the `trash/dataset` directory.
+2. Run training:
+
+   ```bash
+   python -m trash.trash train --dataset=trash/dataset --weights=coco
+   ```
+
+## Structure
+
+- `mrcnn/`: Mask R-CNN implementation
+- `trash/`: Trash detection specific code
+- `images/`: Directory for test images
+- `weights/`: Model weights
+- `Detect_trash_on_images.ipynb`: Jupyter notebook for trash detection
+
+## Credits
+
+- Original Mask R-CNN implementation by [Matterport](https://github.com/matterport/Mask_RCNN)
+- Trash detection adaptation by SIFR.AI
+- TensorFlow 2.x updates and modernization by [Your Name]
 
 More detailed information about the project:  http://opendata.letsdoitworld.org/#/ai
 

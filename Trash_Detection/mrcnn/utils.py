@@ -9,6 +9,7 @@ Written by Waleed Abdulla
 
 import sys
 import os
+import logging
 import math
 import random
 import numpy as np
@@ -21,6 +22,10 @@ import urllib.request
 import shutil
 import warnings
 from distutils.version import LooseVersion
+
+# Import Keras functions
+from tensorflow import keras
+import tensorflow.keras.backend as K
 
 # URL from which to download the latest COCO trained weights
 COCO_MODEL_URL = "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5"
