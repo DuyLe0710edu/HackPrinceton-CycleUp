@@ -6,6 +6,7 @@ __pycache__/
 env/
 venv/
 ENV/
+trash_env/
 env.bak/
 venv.bak/
 .ipynb_checkpoints
