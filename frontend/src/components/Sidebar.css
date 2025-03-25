@@ -1,0 +1,143 @@
+.sidebar {
+  width: 250px;
+  background-color: var(--color-sidebar-bg);
+  height: calc(100vh - 60px);
+  position: fixed;
+  left: 0;
+  top: 60px;
+  z-index: 100;
+  transition: transform var(--transition-speed);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--box-shadow);
+  overflow-y: auto;
+}
+
+.sidebar.closed {
+  transform: translateX(-250px);
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workspace-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--color-text-primary);
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 8px 0;
+}
+
+.nav-sections {
+  list-style: none;
+}
+
+.nav-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  display: block;
+  padding: 0 16px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.nav-items {
+  list-style: none;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 2px 8px;
+  transition: background-color var(--transition-speed);
+}
+
+.nav-item:hover {
+  background-color: var(--color-hover);
+}
+
+.nav-item.active {
+  background-color: var(--color-hover);
+  font-weight: 500;
+}
+
+.nav-icon {
+  margin-right: 8px;
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.nav-text {
+  font-size: 14px;
+}
+
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.new-page-btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  transition: background-color var(--transition-speed);
+}
+
+.new-page-btn:hover {
+  background-color: var(--color-hover);
+}
+
+.plus-icon {
+  margin-right: 8px;
+  font-weight: 700;
+}
+
+.create-profile-btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  transition: background-color var(--transition-speed);
+}
+
+.create-profile-btn:hover {
+  background-color: var(--color-hover);
+}
+
+.camera-icon {
+  margin-right: 8px;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+  }
+} 

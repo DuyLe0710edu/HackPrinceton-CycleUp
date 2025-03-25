@@ -1,0 +1,12 @@
+.footer {
+  background-color: var(--color-white);
+  color: var(--color-text-secondary);
+  padding: 12px 24px;
+  text-align: center;
+  border-top: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.footer p {
+  margin: 4px 0;
+} 

@@ -1,0 +1,185 @@
+.detection-results {
+  background-color: var(--color-white);
+  border-radius: 8px;
+  box-shadow: var(--box-shadow);
+  padding: 24px;
+  width: 100%;
+  height: calc(100vh - 150px);
+  overflow-y: auto;
+}
+
+.detection-results h2 {
+  margin-top: 0;
+  color: var(--color-text-primary);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  font-size: 20px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detection-results h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.results-summary {
+  margin-bottom: 24px;
+}
+
+.total-count {
+  text-align: center;
+  margin-bottom: 24px;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: var(--color-background);
+}
+
+.count-number {
+  display: block;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.count-label {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.most-detected {
+  text-align: center;
+  margin-bottom: 20px;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: var(--color-background);
+}
+
+.most-detected p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.highlight {
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: white;
+  margin-left: 4px;
+}
+
+.highlight.glass { background-color: rgba(0, 255, 0, 0.8); }
+.highlight.metal { background-color: rgba(255, 0, 0, 0.8); }
+.highlight.paper { background-color: rgba(0, 0, 255, 0.8); }
+.highlight.plastic { background-color: rgba(255, 255, 0, 0.8); }
+.highlight.undefined { background-color: rgba(255, 0, 255, 0.8); }
+
+.class-distribution {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.class-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-white);
+}
+
+.class-item:last-child {
+  border-bottom: none;
+}
+
+.class-color-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 12px;
+}
+
+.class-item.glass .class-color-indicator { background-color: rgba(0, 255, 0, 0.8); }
+.class-item.metal .class-color-indicator { background-color: rgba(255, 0, 0, 0.8); }
+.class-item.paper .class-color-indicator { background-color: rgba(0, 0, 255, 0.8); }
+.class-item.plastic .class-color-indicator { background-color: rgba(255, 255, 0, 0.8); }
+.class-item.undefined .class-color-indicator { background-color: rgba(255, 0, 255, 0.8); }
+
+.class-name {
+  flex: 1;
+  text-transform: capitalize;
+  font-size: 14px;
+}
+
+.class-count {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background-color: var(--color-background);
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-size: 14px;
+  min-width: 28px;
+  text-align: center;
+}
+
+.detection-table {
+  margin-top: 24px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--box-shadow);
+}
+
+th {
+  text-align: left;
+  padding: 12px 16px;
+  background-color: var(--color-background);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+td {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+tr:hover {
+  background-color: var(--color-hover);
+}
+
+.class-info {
+  display: flex;
+  align-items: center;
+}
+
+.class-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+tr.glass .class-color-dot { background-color: rgba(0, 255, 0, 0.8); }
+tr.metal .class-color-dot { background-color: rgba(255, 0, 0, 0.8); }
+tr.paper .class-color-dot { background-color: rgba(0, 0, 255, 0.8); }
+tr.plastic .class-color-dot { background-color: rgba(255, 255, 0, 0.8); }
+tr.undefined .class-color-dot { background-color: rgba(255, 0, 255, 0.8); }
+
+.no-detections {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  background-color: var(--color-background);
+} 

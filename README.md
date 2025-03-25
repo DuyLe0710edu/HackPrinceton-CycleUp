@@ -1,6 +1,46 @@
-# Notice: WADE has been superseded by TrashAI which can be found here: https://github.com/code4sac/trash-ai
+# Trash Detection and Classification using YOLOv8
 
-Did you know there is a website where you can upload pictures of trash and the program will identify the trash in the images for you? 
-Now you do! We'd like to introduce you to Trash AI, an open sourced project. Inspired initially by WADE AI, a Let's Do It World project, Trash AI was developed and is maintained by Code for Sacramento and Sponsored by the Moore Institute for Plastic Pollution Research.
+This project aims to detect and classify different types of trash using YOLOv8 for potential integration with robotic systems.
 
-![example](https://user-images.githubusercontent.com/54409/197541487-cfe8ff85-81b3-4eba-894f-80365fa45a8b.jpg)
+## Project Structure
+
+- `data/`: Contains training and testing data
+  - `images/`: Image files for training and testing
+  - `labels/`: Annotation files for training
+  - `datasets/`: Organized datasets
+- `models/`: Saved model files and weights
+- `scripts/`: Python scripts for training, evaluation, and inference
+- `notebooks/`: Jupyter notebooks for experimentation and visualization
+- `utils/`: Utility functions and helper scripts
+- `app/`: Web application for demo purposes
+  - `static/`: Static files (CSS, JS)
+  - `templates/`: HTML templates
+
+## Getting Started
+
+1. Set up the environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+2. Download YOLOv8 model:
+   ```bash
+   python scripts/download_models.py
+   ```
+
+3. Run the detection:
+   ```bash
+   python scripts/detect.py --source data/images/test.jpg
+   ```
+
+## Requirements
+
+See `requirements.txt` for a complete list of dependencies.
+
+
+## How can we run the frontend
+cd hackathon/frontend
+npm install
+npm start

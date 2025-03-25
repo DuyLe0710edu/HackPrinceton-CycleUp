@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 5
+names: ['glass', 'metal', 'paper', 'plastic', 'undefined']
+
+roboflow:
+  workspace: proje-nkf76
+  project: atik-ayristirma
+  version: 9
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/proje-nkf76/atik-ayristirma/dataset/9
