@@ -20,6 +20,13 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import from trash_detection
 from trash_detection.scripts.camera_detect import load_model, process_frame
 
+# Import database connector
+from db_connector import (
+    store_recognition_data,
+    get_recognition_data,
+    create_tables_if_not_exist
+)
+
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -183,6 +190,73 @@ def stop_detection():
     
     return jsonify({"status": "Detection stopped"})
 
+# New MediaPipe Recognition Data API Endpoints
+@app.route('/api/mediapipe/store', methods=['POST'])
+def store_mediapipe_data():
+    """
+    Store MediaPipe recognition data
+    Expected JSON format:
+    {
+        "type": "Face" | "Pose" | "Gesture",
+        "data": { ... recognition data ... }
+    }
+    """
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+        
+        # Validate required fields
+        if 'type' not in data or 'data' not in data:
+            return jsonify({"success": False, "error": "Missing required fields: type and data"}), 400
+        
+        # Store recognition data
+        result = store_recognition_data(data['type'], data['data'])
+        
+        if result['success']:
+            return jsonify(result), 201
+        else:
+            return jsonify(result), 500
+    
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/mediapipe/data', methods=['GET'])
+def get_mediapipe_data():
+    """
+    Get MediaPipe recognition data
+    Query parameters:
+    - type: "Face" | "Pose" | "Gesture" (optional)
+    - limit: int (optional, default: 100)
+    - offset: int (optional, default: 0)
+    """
+    try:
+        # Extract query parameters
+        recognition_type = request.args.get('type')
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+        
+        # Get recognition data
+        result = get_recognition_data(recognition_type, limit, offset)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+    
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/mediapipe/db-check', methods=['GET'])
+def check_database():
+    """Check database connection and table existence"""
+    try:
+        result = create_tables_if_not_exist()
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # SocketIO events
 @socketio.on('connect')
 def on_connect():
@@ -191,6 +265,38 @@ def on_connect():
 @socketio.on('disconnect')
 def on_disconnect():
     print('Client disconnected')
+
+# Handle MediaPipe recognition data via WebSocket
+@socketio.on('mediapipe_recognition')
+def handle_mediapipe_data(data):
+    """
+    Handle MediaPipe recognition data from WebSocket
+    Expected data format:
+    {
+        "type": "Face" | "Pose" | "Gesture",
+        "data": { ... recognition data ... }
+    }
+    """
+    try:
+        # Validate data
+        if 'type' not in data or 'data' not in data:
+            emit('mediapipe_response', {
+                "success": False, 
+                "error": "Missing required fields: type and data"
+            })
+            return
+        
+        # Store recognition data
+        result = store_recognition_data(data['type'], data['data'])
+        
+        # Send response back to client
+        emit('mediapipe_response', result)
+    
+    except Exception as e:
+        emit('mediapipe_response', {
+            "success": False, 
+            "error": str(e)
+        })
 
 # Register cleanup function
 @atexit.register
@@ -240,6 +346,12 @@ def load_model(model_path=None):
         print("WARNING: Using passthrough model (no detection)")
         model = PassthroughModel()
         return model
+
+# Initialize database when app starts
+try:
+    create_tables_if_not_exist()
+except Exception as e:
+    print(f"Error initializing database: {e}")
 
 if __name__ == '__main__':
     print("Starting Trash Detection Backend on port 8000...")

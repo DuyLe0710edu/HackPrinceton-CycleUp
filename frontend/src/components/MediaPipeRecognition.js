@@ -1,5 +1,7 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import './MediaPipeRecognition.css';
+import { throttle } from 'lodash';
+import { io } from 'socket.io-client';
 
 // Import from the specific @mediapipe packages directly - this is the most reliable approach
 import { FilesetResolver } from '@mediapipe/tasks-vision';
@@ -72,6 +74,100 @@ function MediaPipeRecognition() {
   
   // Animation frame ID for proper cleanup
   const requestAnimationFrameIdRef = useRef(null);
+  
+  // Add new state for data saving status
+  const [dataSaveStatus, setDataSaveStatus] = useState({
+    face: { saving: false, lastSaved: null, error: null },
+    pose: { saving: false, lastSaved: null, error: null },
+    gesture: { saving: false, lastSaved: null, error: null }
+  });
+  
+  // Add URL config for backend
+  const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+  
+  // Add a throttled function to send recognition data to the backend
+  // Only send data at most once every 2 seconds for each recognition type
+  const sendToBackend = useCallback(
+    throttle((type, data) => {
+      if (!data) return;
+      
+      // Set saving status
+      setDataSaveStatus(prev => ({
+        ...prev,
+        [type.toLowerCase()]: { 
+          ...prev[type.toLowerCase()], 
+          saving: true,
+          error: null
+        }
+      }));
+      
+      // Prepare the payload
+      const payload = {
+        type: type,
+        data: data
+      };
+      
+      // Send data to the backend
+      fetch(`${backendUrl}/api/mediapipe/store`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+        .then(response => response.json())
+        .then(result => {
+          // Update status on success
+          setDataSaveStatus(prev => ({
+            ...prev,
+            [type.toLowerCase()]: { 
+              saving: false,
+              lastSaved: new Date().toISOString(),
+              error: null
+            }
+          }));
+          console.log(`${type} data saved successfully:`, result);
+        })
+        .catch(error => {
+          // Update status on error
+          setDataSaveStatus(prev => ({
+            ...prev,
+            [type.toLowerCase()]: { 
+              saving: false,
+              lastSaved: prev[type.toLowerCase()].lastSaved,
+              error: error.message
+            }
+          }));
+          console.error(`Error saving ${type} data:`, error);
+        });
+    }, 2000),
+    [backendUrl]
+  );
+  
+  // Add WebSocket implementation for real-time data
+  const setupWebSocket = useCallback(() => {
+    // Only proceed if socket.io-client is available
+    if (typeof io !== 'undefined') {
+      try {
+        const socket = io(backendUrl);
+        
+        socket.on('connect', () => {
+          console.log('Connected to WebSocket');
+        });
+        
+        socket.on('mediapipe_response', (response) => {
+          console.log('MediaPipe data response:', response);
+        });
+        
+        return socket;
+      } catch (error) {
+        console.error('Error setting up WebSocket:', error);
+        return null;
+      }
+    }
+    
+    return null;
+  }, [backendUrl]);
   
   // Helper to add debug logs with timestamps
   const addDebugLog = (message) => {
@@ -574,6 +670,18 @@ function MediaPipeRecognition() {
                 } else {
                   setFaceLog(`Detected ${faceResults.faceLandmarks.length} face(s)<br>No significant expressions`);
                 }
+                
+                // Add this: send face data to backend
+                const faceData = {
+                  timestamp: new Date().toISOString(),
+                  faceLandmarks: faceResults.faceLandmarks,
+                  faceBlendshapes: faceResults.faceBlendshapes,
+                  metrics: {
+                    detectionRate: detectionStatsRef.current.face.success / detectionStatsRef.current.face.count
+                  }
+                };
+                
+                sendToBackend('Face', faceData);
               } else {
                 setFaceLog(`Detected ${faceResults.faceLandmarks.length} face(s)`);
               }
@@ -750,6 +858,18 @@ function MediaPipeRecognition() {
                     })
                     .join('');
                   
+                  // Add this: send pose data to backend
+                  const poseData = {
+                    timestamp: new Date().toISOString(),
+                    poseLandmarks: poseResults.landmarks,
+                    poseMetrics: poseMetrics,
+                    metrics: {
+                      detectionRate: detectionStatsRef.current.pose.success / detectionStatsRef.current.pose.count
+                    }
+                  };
+                  
+                  sendToBackend('Pose', poseData);
+                  
                   // Update pose log
                   const now = performance.now();
                   if (now - lastPoseUpdateTimeRef.current > 200) {
@@ -819,6 +939,20 @@ function MediaPipeRecognition() {
                 const hand = gestureResults.handedness && gestureResults.handedness[0] ? 
                           gestureResults.handedness[0][0].displayName : 'Unknown';
                 
+                // Add this: send gesture data to backend
+                const gestureData = {
+                  timestamp: new Date().toISOString(),
+                  gestures: gestureResults.gestures,
+                  handedness: gestureResults.handedness,
+                  landmarks: gestureResults.landmarks,
+                  metrics: {
+                    detectionRate: detectionStatsRef.current.gesture.success / detectionStatsRef.current.gesture.count
+                  }
+                };
+                
+                sendToBackend('Gesture', gestureData);
+                
+                // Then update the log as before
                 setGestureLog(`Detected ${gesture.categoryName} (${(gesture.score * 100).toFixed(0)}%) - ${hand} hand`);
               } else {
                 setGestureLog('No gestures detected');
@@ -1053,6 +1187,60 @@ function MediaPipeRecognition() {
             <div className={`log-panel ${gestureEnabled ? 'active' : ''}`}>
               <h3>Gesture Recognition Log</h3>
               <div className="log-content">{gestureLog}</div>
+            </div>
+          </div>
+          
+          {/* Add data saving status indicator */}
+          <div className="save-status-panel">
+            <h3>Data Saving Status</h3>
+            <div className="save-status-content">
+              <div className={`save-status-item ${faceEnabled ? 'active' : ''}`}>
+                <span className="save-status-type">Face:</span>
+                <span className={`save-status-badge ${dataSaveStatus.face.saving ? 'saving' : 
+                  dataSaveStatus.face.error ? 'error' : 
+                  dataSaveStatus.face.lastSaved ? 'saved' : ''}`}>
+                  {dataSaveStatus.face.saving ? 'Saving...' : 
+                   dataSaveStatus.face.error ? 'Error' : 
+                   dataSaveStatus.face.lastSaved ? 'Saved' : 'Not saved'}
+                </span>
+                {dataSaveStatus.face.lastSaved && 
+                  <span className="save-status-time">
+                    Last: {new Date(dataSaveStatus.face.lastSaved).toLocaleTimeString()}
+                  </span>
+                }
+              </div>
+              
+              <div className={`save-status-item ${poseEnabled ? 'active' : ''}`}>
+                <span className="save-status-type">Pose:</span>
+                <span className={`save-status-badge ${dataSaveStatus.pose.saving ? 'saving' : 
+                  dataSaveStatus.pose.error ? 'error' : 
+                  dataSaveStatus.pose.lastSaved ? 'saved' : ''}`}>
+                  {dataSaveStatus.pose.saving ? 'Saving...' : 
+                   dataSaveStatus.pose.error ? 'Error' : 
+                   dataSaveStatus.pose.lastSaved ? 'Saved' : 'Not saved'}
+                </span>
+                {dataSaveStatus.pose.lastSaved && 
+                  <span className="save-status-time">
+                    Last: {new Date(dataSaveStatus.pose.lastSaved).toLocaleTimeString()}
+                  </span>
+                }
+              </div>
+              
+              <div className={`save-status-item ${gestureEnabled ? 'active' : ''}`}>
+                <span className="save-status-type">Gesture:</span>
+                <span className={`save-status-badge ${dataSaveStatus.gesture.saving ? 'saving' : 
+                  dataSaveStatus.gesture.error ? 'error' : 
+                  dataSaveStatus.gesture.lastSaved ? 'saved' : ''}`}>
+                  {dataSaveStatus.gesture.saving ? 'Saving...' : 
+                   dataSaveStatus.gesture.error ? 'Error' : 
+                   dataSaveStatus.gesture.lastSaved ? 'Saved' : 'Not saved'}
+                </span>
+                {dataSaveStatus.gesture.lastSaved && 
+                  <span className="save-status-time">
+                    Last: {new Date(dataSaveStatus.gesture.lastSaved).toLocaleTimeString()}
+                  </span>
+                }
+              </div>
             </div>
           </div>
           

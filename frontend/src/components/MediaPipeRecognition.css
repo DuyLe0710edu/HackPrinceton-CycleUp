@@ -512,4 +512,77 @@
   .debug-panel {
     max-height: 150px;
   }
+}
+
+/* Data saving status styles */
+.save-status-panel {
+  flex: 1;
+  background-color: var(--color-bg-light);
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: var(--box-shadow);
+  margin-top: 15px;
+}
+
+.save-status-panel h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.save-status-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.save-status-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: #f5f5f5;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+
+.save-status-item.active {
+  opacity: 1;
+  border-left: 3px solid var(--color-accent);
+}
+
+.save-status-type {
+  font-weight: 500;
+  width: 70px;
+}
+
+.save-status-badge {
+  background-color: #e0e0e0;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.save-status-badge.saving {
+  background-color: #FBBC05;
+  color: white;
+}
+
+.save-status-badge.saved {
+  background-color: #34A853;
+  color: white;
+}
+
+.save-status-badge.error {
+  background-color: #EA4335;
+  color: white;
+}
+
+.save-status-time {
+  color: #666;
+  font-size: 13px;
+  margin-left: auto;
 } 
