@@ -8,22 +8,8 @@ import DetectionResults from './components/DetectionResults';
 import Analytics from './components/Analytics';
 import Footer from './components/Footer';
 import ProfileModal from './components/ProfileModal';
+import MediaPipeRecognition from './components/MediaPipeRecognition';
 import detectionStore from './services/detectionStore';
-
-// We'll create a recognition component
-const RecognitionPage = () => {
-  return (
-    <div className="recognition-page">
-      <h2>Gesture & Pose Recognition</h2>
-      <div className="recognition-content">
-        <p>This page will feature MediaPipe-based gesture, face, and pose recognition.</p>
-        <div className="recognition-placeholder">
-          <div className="recognition-loading">Coming Soon</div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Main application layout component
 const AppLayout = ({ children }) => {
@@ -111,7 +97,7 @@ function App() {
         <Route path="/" element={<AppLayout />} />
         <Route path="/recognition" element={
           <AppLayout>
-            <RecognitionPage />
+            <MediaPipeRecognition />
           </AppLayout>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />

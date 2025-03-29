@@ -136,6 +136,18 @@
   margin-right: 8px;
 }
 
+.nav-link {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.nav-item .nav-link:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;

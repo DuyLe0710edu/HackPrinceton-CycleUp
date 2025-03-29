@@ -90,3 +90,80 @@ npm start
 ```
 
 Your application should now be running at http://localhost:3000
+
+## Camera Troubleshooting
+
+If the camera feed is not displaying properly in the application, follow these steps to fix common issues:
+
+### Quick Fix: Use the Camera Fix Script
+
+We've created a script to automatically fix common camera issues:
+
+1. From the project root, run:
+   ```bash
+   ./fix_camera.sh
+   ```
+
+2. After the script completes, start the backend with the proper environment variables:
+   ```bash
+   cd backend
+   OPENCV_FFMPEG_CAPTURE_OPTIONS="video_codec;h264_videotoolbox" PYTHONUNBUFFERED=1 python app.py
+   ```
+
+### Common Camera Issues and Solutions
+
+1. **Camera shows as connected but no image appears**
+   - This is often an environment variable or terminal issue
+   - Run the fix_camera.sh script to reset the camera system
+   - Ensure you're using the correct environment variables when starting the backend
+
+2. **Multiple cameras detected (phone and computer)**
+   - The application is configured to use the first camera (index 0)
+   - Disconnect or disable other camera devices if needed
+   - You can modify the `initialize_camera()` function in app.py to explicitly use a different camera index
+
+3. **Permission issues with the camera**
+   - Make sure your application has camera permissions in system settings
+   - The Info.plist file contains macOS camera permission requirements
+   - Try restarting your computer if permissions appear stuck
+
+### Manual Camera Reset
+
+If the fix_camera.sh script doesn't solve your issue:
+
+1. Kill any Python processes that might be using the camera:
+   ```bash
+   pkill -f python
+   ```
+
+2. Reset the macOS camera system:
+   ```bash
+   sudo killall VDCAssistant
+   sudo killall AppleCameraAssistant
+   ```
+
+3. Clear any Python cache:
+   ```bash
+   find ./backend -name "*.pyc" -delete
+   find ./backend -name "__pycache__" -type d -exec rm -rf {} +
+   ```
+
+4. Start the backend with proper environment variables:
+   ```bash
+   export OPENCV_FFMPEG_CAPTURE_OPTIONS="video_codec;h264_videotoolbox"
+   export OPENCV_VIDEOIO_DEBUG=1
+   export PYTHONUNBUFFERED=1
+   cd backend
+   python app.py
+   ```
+
+### Why Camera Issues Occur
+
+The camera detection system is vulnerable to environment variables and terminal session issues because:
+
+1. OpenCV's camera handling is sensitive to environment variables
+2. WebSocket connections can be interrupted by terminal state changes
+3. Camera access permissions can get stuck between sessions
+4. Multiple processes trying to access the camera can cause conflicts
+
+Always make sure to properly shut down the application when you're done to avoid camera resource conflicts in future sessions.
