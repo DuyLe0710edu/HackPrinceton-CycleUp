@@ -113,6 +113,7 @@ if __name__ == "__main__":
     
     # List available cameras
     cameras = list_available_cameras()
+    #Checking what is the camera 
     
     if cameras:
         # Test the default camera (index 0)

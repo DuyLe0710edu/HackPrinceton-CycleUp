@@ -106,6 +106,27 @@
   object-fit: cover;
 }
 
+.cycle-up-button {
+  display: inline-flex;
+  align-items: center;
+  background-color: #4b21ca;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  margin-right: 16px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+}
+
+.cycle-up-button:hover {
+  background-color: #5c2ef5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
 @media (max-width: 768px) {
   .header-center {
     display: none;

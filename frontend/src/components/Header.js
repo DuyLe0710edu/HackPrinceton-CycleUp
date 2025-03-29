@@ -17,6 +17,9 @@ function Header({ toggleSidebar, userProfile }) {
         </div>
       </div>
       <div className="header-right">
+        <a href="/recognition" className="cycle-up-button">
+          CycleUp
+        </a>
         <div className="user-button">
           {userProfile ? (
             <img 
