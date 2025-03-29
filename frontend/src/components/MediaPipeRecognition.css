@@ -302,6 +302,103 @@
   border: 1px solid var(--color-border);
 }
 
+/* Face blendshapes specific styling */
+.face-blendshapes-log {
+  white-space: pre;
+  line-height: 1.4;
+  font-family: monospace;
+  font-size: 0.85rem;
+  background-color: #f8f8f8;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+/* Pose metrics specific styling */
+.pose-metrics-log {
+  white-space: pre;
+  line-height: 1.4;
+  font-family: monospace;
+  font-size: 0.85rem;
+  background-color: #f8f8f8;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.face-blendshapes-log .blendshape-container,
+.pose-metrics-log .posemetric-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.face-blendshapes-log .blendshape-item,
+.pose-metrics-log .posemetric-item {
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 20px;
+  margin-bottom: 2px;
+}
+
+.face-blendshapes-log .blendshape-name,
+.pose-metrics-log .posemetric-name {
+  flex: 0 0 40%;
+  text-align: right;
+  padding-right: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #333;
+}
+
+.face-blendshapes-log .blendshape-value,
+.pose-metrics-log .posemetric-value {
+  flex: 0 0 70px;
+  text-align: left;
+  color: #333;
+  font-weight: 500;
+}
+
+.face-blendshapes-log .blendshape-bar,
+.pose-metrics-log .posemetric-bar {
+  height: 16px;
+  background-color: #4285f4;
+  border-radius: 2px;
+  position: absolute;
+  left: calc(40% + 80px);
+  max-width: calc(60% - 90px);
+}
+
+/* Different colors for different expression types */
+.face-blendshapes-log .blendshape-item:nth-child(4n+1) .blendshape-bar {
+  background-color: #4285f4; /* Google blue */
+}
+
+.face-blendshapes-log .blendshape-item:nth-child(4n+2) .blendshape-bar {
+  background-color: #34A853; /* Google green */
+}
+
+.face-blendshapes-log .blendshape-item:nth-child(4n+3) .blendshape-bar {
+  background-color: #FBBC05; /* Google yellow */
+}
+
+.face-blendshapes-log .blendshape-item:nth-child(4n+4) .blendshape-bar {
+  background-color: #EA4335; /* Google red */
+}
+
+/* Pose metrics don't need color cycling as we already set colors based on values */
+
+/* To ensure we don't have unwanted stylings from the previous CSS */
+.face-blendshapes-log::before,
+.pose-metrics-log::before {
+  content: none;
+}
+
+.face-blendshapes-log span.value-bar,
+.pose-metrics-log span.value-bar {
+  display: none;
+}
+
 .recognition-settings {
   margin-top: 10px;
   display: flex;

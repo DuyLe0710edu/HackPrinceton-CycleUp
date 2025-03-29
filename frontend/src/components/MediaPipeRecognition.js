@@ -536,10 +536,47 @@ function MediaPipeRecognition() {
               );
             }
             
-            // Update face log with throttling
+            // Update face log with blendshapes data (throttled)
             const now = performance.now();
             if (now - lastFaceUpdateTimeRef.current > 200) {
-              setFaceLog(`Detected ${faceResults.faceLandmarks.length} face(s)`);
+              if (faceResults.faceBlendshapes && faceResults.faceBlendshapes.length > 0) {
+                // Extract blendshapes data from the first detected face
+                const blendShapes = faceResults.faceBlendshapes[0];
+                
+                // Create formatted blendshapes text
+                let blendshapesElements = [];
+                
+                // Add up to 12 of the most significant blendshapes (those with higher values)
+                if (blendShapes && blendShapes.categories) {
+                  // Sort blendshapes by score in descending order
+                  const sortedBlendshapes = [...blendShapes.categories].sort((a, b) => b.score - a.score);
+                  
+                  // Take the top significant blendshapes with values > 0.02
+                  const significantBlendshapes = sortedBlendshapes
+                    .filter(shape => shape.score > 0.02)
+                    .slice(0, 15);
+                  
+                  // Create an HTML representation with visual bars
+                  const blendshapesHTML = significantBlendshapes
+                    .map(shape => {
+                      // Format each blendshape with a blue bar representing its value
+                      const barWidth = Math.max(1, Math.round(shape.score * 100));
+                      return `<div class="blendshape-item">
+                                <span class="blendshape-name">${shape.categoryName}</span>
+                                <span class="blendshape-value">${shape.score.toFixed(4)}</span>
+                                <div class="blendshape-bar" style="width: ${barWidth}%"></div>
+                              </div>`;
+                    })
+                    .join('');
+                  
+                  // Set HTML content for the face log panel
+                  setFaceLog(`<div class="blendshape-container">${blendshapesHTML}</div>`);
+                } else {
+                  setFaceLog(`Detected ${faceResults.faceLandmarks.length} face(s)<br>No significant expressions`);
+                }
+              } else {
+                setFaceLog(`Detected ${faceResults.faceLandmarks.length} face(s)`);
+              }
               lastFaceUpdateTimeRef.current = now;
             }
           } else if (faceEnabled) {
@@ -568,15 +605,173 @@ function MediaPipeRecognition() {
               );
             }
             
-            // Update pose log with throttling to avoid excessive renders
+            // Calculate and display advanced pose metrics
             if (poseResults.landmarks.length > 0) {
-              currentPoseLogRef.current = `Detected ${poseResults.landmarks.length} person(s)`;
+              // Get the first person's landmarks (we're analyzing the primary person)
+              const landmarks = poseResults.landmarks[0];
               
-              // Only update state every 200ms to prevent excessive re-renders
-              const now = performance.now();
-              if (now - lastPoseUpdateTimeRef.current > 200) {
-                setPoseLog(currentPoseLogRef.current);
-                lastPoseUpdateTimeRef.current = now;
+              // Create metrics array to store various pose measurements
+              const poseMetrics = [];
+              
+              // Calculate joint visibility percentages and confidence scores
+              if (landmarks) {
+                try {
+                  // Calculate posture alignment metrics
+                  
+                  // Shoulder alignment (horizontal)
+                  const leftShoulder = landmarks[11]; // Left shoulder landmark
+                  const rightShoulder = landmarks[12]; // Right shoulder landmark
+                  
+                  // Hip alignment (horizontal)
+                  const leftHip = landmarks[23]; // Left hip landmark
+                  const rightHip = landmarks[24]; // Right hip landmark
+                  
+                  // Spine alignment (vertical)
+                  const nose = landmarks[0]; // Nose landmark
+                  const midShoulder = {
+                    x: (leftShoulder.x + rightShoulder.x) / 2,
+                    y: (leftShoulder.y + rightShoulder.y) / 2,
+                    z: (leftShoulder.z + rightShoulder.z) / 2,
+                    visibility: (leftShoulder.visibility + rightShoulder.visibility) / 2
+                  };
+                  const midHip = {
+                    x: (leftHip.x + rightHip.x) / 2,
+                    y: (leftHip.y + rightHip.y) / 2,
+                    z: (leftHip.z + rightHip.z) / 2,
+                    visibility: (leftHip.visibility + rightHip.visibility) / 2
+                  };
+                  
+                  // Calculate shoulder alignment score (0 is perfectly level)
+                  // Higher values indicate more tilt
+                  const shoulderAngle = Math.abs(Math.atan2(
+                    rightShoulder.y - leftShoulder.y,
+                    rightShoulder.x - leftShoulder.x
+                  ) * (180 / Math.PI));
+                  const shoulderAlignmentScore = 1 - Math.min(1, shoulderAngle / 45);
+                  
+                  // Calculate hip alignment score (0 is perfectly level)
+                  const hipAngle = Math.abs(Math.atan2(
+                    rightHip.y - leftHip.y,
+                    rightHip.x - leftHip.x
+                  ) * (180 / Math.PI));
+                  const hipAlignmentScore = 1 - Math.min(1, hipAngle / 45);
+                  
+                  // Calculate spine straightness
+                  const spineVector = {
+                    x: midHip.x - midShoulder.x,
+                    y: midHip.y - midShoulder.y
+                  };
+                  const spineAngle = Math.abs(Math.atan2(spineVector.x, spineVector.y) * (180 / Math.PI));
+                  const spineAlignmentScore = 1 - Math.min(1, spineAngle / 30);
+                  
+                  // Check if visibility is good enough for reliable metrics
+                  const visibilityThreshold = 0.5;
+                  const shoulderVisible = leftShoulder.visibility > visibilityThreshold && rightShoulder.visibility > visibilityThreshold;
+                  const hipVisible = leftHip.visibility > visibilityThreshold && rightHip.visibility > visibilityThreshold;
+                  const noseVisible = nose.visibility > visibilityThreshold;
+                  
+                  // Only add metrics if the relevant body parts are visible
+                  if (shoulderVisible) {
+                    poseMetrics.push({
+                      name: 'shoulderAlignment',
+                      displayName: 'Shoulder Alignment',
+                      value: shoulderAlignmentScore,
+                      visibility: (leftShoulder.visibility + rightShoulder.visibility) / 2
+                    });
+                  }
+                  
+                  if (hipVisible) {
+                    poseMetrics.push({
+                      name: 'hipAlignment',
+                      displayName: 'Hip Alignment',
+                      value: hipAlignmentScore,
+                      visibility: (leftHip.visibility + rightHip.visibility) / 2
+                    });
+                  }
+                  
+                  if (shoulderVisible && hipVisible) {
+                    poseMetrics.push({
+                      name: 'spineAlignment',
+                      displayName: 'Spine Alignment',
+                      value: spineAlignmentScore,
+                      visibility: (midShoulder.visibility + midHip.visibility) / 2
+                    });
+                  }
+                  
+                  // Calculate average confidence across all landmarks
+                  const avgVisibility = landmarks.reduce((sum, landmark) => sum + landmark.visibility, 0) / landmarks.length;
+                  poseMetrics.push({
+                    name: 'poseConfidence',
+                    displayName: 'Overall Confidence',
+                    value: avgVisibility,
+                    visibility: 1.0 // This is a meta-metric, so it's always visible
+                  });
+                  
+                  // Add arm extension metric
+                  const leftWrist = landmarks[15]; // Left wrist
+                  const rightWrist = landmarks[16]; // Right wrist
+                  const leftElbow = landmarks[13]; // Left elbow
+                  const rightElbow = landmarks[14]; // Right elbow
+                  
+                  if (leftWrist.visibility > visibilityThreshold && leftElbow.visibility > visibilityThreshold && leftShoulder.visibility > visibilityThreshold) {
+                    const leftArmExtension = calculateJointExtension(leftShoulder, leftElbow, leftWrist);
+                    poseMetrics.push({
+                      name: 'leftArmExtension',
+                      displayName: 'Left Arm Extension',
+                      value: leftArmExtension,
+                      visibility: Math.min(leftWrist.visibility, leftElbow.visibility, leftShoulder.visibility)
+                    });
+                  }
+                  
+                  if (rightWrist.visibility > visibilityThreshold && rightElbow.visibility > visibilityThreshold && rightShoulder.visibility > visibilityThreshold) {
+                    const rightArmExtension = calculateJointExtension(rightShoulder, rightElbow, rightWrist);
+                    poseMetrics.push({
+                      name: 'rightArmExtension',
+                      displayName: 'Right Arm Extension',
+                      value: rightArmExtension,
+                      visibility: Math.min(rightWrist.visibility, rightElbow.visibility, rightShoulder.visibility)
+                    });
+                  }
+                  
+                  // Sort metrics by confidence score
+                  poseMetrics.sort((a, b) => b.value - a.value);
+                  
+                  // Generate HTML for pose metrics display
+                  const poseMetricsHTML = poseMetrics
+                    .filter(metric => metric.visibility > 0.5) // Only show metrics with good visibility
+                    .map(metric => {
+                      const barWidth = Math.max(1, Math.round(metric.value * 100));
+                      const barColor = getMetricColor(metric.name, metric.value);
+                      return `<div class="posemetric-item">
+                                <span class="posemetric-name">${metric.displayName}</span>
+                                <span class="posemetric-value">${metric.value.toFixed(2)}</span>
+                                <div class="posemetric-bar" style="width: ${barWidth}%; background-color: ${barColor};"></div>
+                              </div>`;
+                    })
+                    .join('');
+                  
+                  // Update pose log
+                  const now = performance.now();
+                  if (now - lastPoseUpdateTimeRef.current > 200) {
+                    setPoseLog(`<div class="posemetric-container">${poseMetricsHTML}</div>`);
+                    lastPoseUpdateTimeRef.current = now;
+                  }
+                } catch (err) {
+                  console.error('Error calculating pose metrics:', err);
+                  // Fallback to basic pose detection log
+                  const now = performance.now();
+                  if (now - lastPoseUpdateTimeRef.current > 200) {
+                    setPoseLog(`Detected ${poseResults.landmarks.length} person(s)`);
+                    lastPoseUpdateTimeRef.current = now;
+                  }
+                }
+              } else {
+                // No landmarks found
+                const now = performance.now();
+                if (now - lastPoseUpdateTimeRef.current > 200) {
+                  setPoseLog('No poses detected');
+                  lastPoseUpdateTimeRef.current = now;
+                }
               }
             } else {
               currentPoseLogRef.current = 'No poses detected';
@@ -841,12 +1036,18 @@ function MediaPipeRecognition() {
           <div className="detection-logs">
             <div className={`log-panel ${faceEnabled ? 'active' : ''}`}>
               <h3>Face Detection Log</h3>
-              <div className="log-content">{faceLog}</div>
+              <div 
+                className="log-content face-blendshapes-log"
+                dangerouslySetInnerHTML={{ __html: faceLog }}
+              ></div>
             </div>
             
             <div className={`log-panel ${poseEnabled ? 'active' : ''}`}>
               <h3>Pose Detection Log</h3>
-              <div className="log-content">{poseLog}</div>
+              <div 
+                className="log-content pose-metrics-log"
+                dangerouslySetInnerHTML={{ __html: poseLog }}
+              ></div>
             </div>
             
             <div className={`log-panel ${gestureEnabled ? 'active' : ''}`}>
@@ -893,5 +1094,56 @@ function MediaPipeRecognition() {
     </div>
   );
 }
+
+// Helper function to calculate joint extension (0 = fully bent, 1 = fully extended)
+const calculateJointExtension = (joint1, joint2, joint3) => {
+  // Calculate vectors
+  const vector1 = {
+    x: joint2.x - joint1.x,
+    y: joint2.y - joint1.y,
+    z: joint2.z - joint1.z
+  };
+  
+  const vector2 = {
+    x: joint3.x - joint2.x,
+    y: joint3.y - joint2.y,
+    z: joint3.z - joint2.z
+  };
+  
+  // Calculate magnitudes
+  const magnitude1 = Math.sqrt(vector1.x * vector1.x + vector1.y * vector1.y + vector1.z * vector1.z);
+  const magnitude2 = Math.sqrt(vector2.x * vector2.x + vector2.y * vector2.y + vector2.z * vector2.z);
+  
+  // Calculate dot product
+  const dotProduct = vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z;
+  
+  // Calculate angle in radians
+  const cosAngle = dotProduct / (magnitude1 * magnitude2);
+  const angle = Math.acos(Math.max(-1, Math.min(1, cosAngle)));
+  
+  // Normalize to 0-1 range where 1 is straight (180 degrees) and 0 is fully bent
+  return 1 - (angle / Math.PI);
+};
+
+// Helper function to get appropriate color for metric based on value
+const getMetricColor = (metricName, value) => {
+  // Different metrics have different "good" ranges
+  if (metricName === 'shoulderAlignment' || metricName === 'hipAlignment' || metricName === 'spineAlignment') {
+    // For alignment, higher is better (green = good alignment)
+    if (value > 0.8) return '#34A853'; // Good - green
+    if (value > 0.5) return '#FBBC05'; // Okay - yellow
+    return '#EA4335'; // Poor - red
+  } else if (metricName === 'poseConfidence') {
+    // For confidence, higher is better
+    if (value > 0.7) return '#34A853'; // Good confidence - green
+    if (value > 0.4) return '#FBBC05'; // Moderate confidence - yellow
+    return '#EA4335'; // Poor confidence - red
+  } else {
+    // Default color scheme (higher is generally better)
+    if (value > 0.7) return '#4285F4'; // Blue
+    if (value > 0.4) return '#34A853'; // Green
+    return '#FBBC05'; // Yellow
+  }
+};
 
 export default MediaPipeRecognition; 
