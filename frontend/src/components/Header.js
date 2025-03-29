@@ -8,7 +8,7 @@ function Header({ toggleSidebar, userProfile }) {
         <button className="menu-toggle" onClick={toggleSidebar}>
           <span className="menu-icon">☰</span>
         </button>
-        <h1 className="app-title">Trash Detection</h1>
+        <h1 className="app-title">Cycle Up</h1>
       </div>
       <div className="header-center">
         <div className="search-bar">

@@ -55,11 +55,23 @@ function MediaPipeRecognition() {
   
   // References for throttling log updates
   const lastPoseUpdateTimeRef = useRef(0);
+  const lastFaceUpdateTimeRef = useRef(0);  
+  const lastGestureUpdateTimeRef = useRef(0);
   const currentPoseLogRef = useRef('No pose detection running');
+  
+  // Detection performance tracking
+  const detectionStatsRef = useRef({
+    face: { count: 0, success: 0, lastFrameDetected: false },
+    pose: { count: 0, success: 0, lastFrameDetected: false },
+    gesture: { count: 0, success: 0, lastFrameDetected: false }
+  });
   
   // Add debug logs
   const [debugLogs, setDebugLogs] = useState([]);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  
+  // Animation frame ID for proper cleanup
+  const requestAnimationFrameIdRef = useRef(null);
   
   // Helper to add debug logs with timestamps
   const addDebugLog = (message) => {
@@ -164,6 +176,13 @@ function MediaPipeRecognition() {
       setError(null);
       addDebugLog("Starting camera");
       setCameraRunning(true);
+      
+      // Reset detection stats when camera starts
+      detectionStatsRef.current = {
+        face: { count: 0, success: 0, lastFrameDetected: false },
+        pose: { count: 0, success: 0, lastFrameDetected: false },
+        gesture: { count: 0, success: 0, lastFrameDetected: false }
+      };
     } catch (err) {
       console.error("Failed to start camera:", err);
       setError(`Failed to start camera: ${err.message}`);
@@ -175,6 +194,12 @@ function MediaPipeRecognition() {
   const stopCamera = () => {
     addDebugLog("Stopping camera");
     setCameraRunning(false);
+    
+    // Cancel any pending animation frame
+    if (requestAnimationFrameIdRef.current) {
+      cancelAnimationFrame(requestAnimationFrameIdRef.current);
+      requestAnimationFrameIdRef.current = null;
+    }
     
     // Stop the camera
     if (videoRef.current && videoRef.current.srcObject) {
@@ -229,6 +254,12 @@ function MediaPipeRecognition() {
         const tracks = video.srcObject.getTracks();
         tracks.forEach(track => track.stop());
       }
+      
+      // Cancel any pending animation frame
+      if (requestAnimationFrameIdRef.current) {
+        cancelAnimationFrame(requestAnimationFrameIdRef.current);
+        requestAnimationFrameIdRef.current = null;
+      }
     };
   }, [cameraRunning]);
   
@@ -244,13 +275,13 @@ function MediaPipeRecognition() {
         addDebugLog('Loading pose landmarker model...');
         setModelLoadingStatus(prev => ({ ...prev, pose: 'Loading...' }));
         
-        // Create pose landmarker
+        // Create pose landmarker with optimized settings for better performance
         const poseLandmarker = await window.PoseLandmarker.createFromOptions(visionRef.current, {
           baseOptions: {
             modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
             delegate: 'GPU'
           },
-          runningMode: runningModeRef.current,
+          runningMode: "VIDEO",  // Always use VIDEO mode from the start
           numPoses: 1
         });
         
@@ -270,6 +301,15 @@ function MediaPipeRecognition() {
     
     if (poseEnabled) {
       initializePoseLandmarker();
+    } else if (poseLandmarkerRef.current) {
+      // Close the model if disabled to free resources
+      try {
+        poseLandmarkerRef.current.close();
+        poseLandmarkerRef.current = null;
+        addDebugLog('Closed pose landmarker');
+      } catch (e) {
+        console.error('Error closing pose landmarker:', e);
+      }
     }
   }, [poseEnabled]);
   
@@ -285,14 +325,14 @@ function MediaPipeRecognition() {
         addDebugLog('Loading face landmarker model...');
         setModelLoadingStatus(prev => ({ ...prev, face: 'Loading...' }));
         
-        // Create face landmarker
+        // Create face landmarker with optimized settings
         const faceLandmarker = await window.FaceLandmarker.createFromOptions(visionRef.current, {
           baseOptions: {
             modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
             delegate: 'GPU'
           },
           outputFaceBlendshapes: true,
-          runningMode: runningModeRef.current,
+          runningMode: "VIDEO",  // Always use VIDEO mode from the start
           numFaces: 1
         });
         
@@ -312,6 +352,15 @@ function MediaPipeRecognition() {
     
     if (faceEnabled) {
       initializeFaceLandmarker();
+    } else if (faceLandmarkerRef.current) {
+      // Close the model if disabled to free resources
+      try {
+        faceLandmarkerRef.current.close();
+        faceLandmarkerRef.current = null;
+        addDebugLog('Closed face landmarker');
+      } catch (e) {
+        console.error('Error closing face landmarker:', e);
+      }
     }
   }, [faceEnabled]);
   
@@ -327,13 +376,13 @@ function MediaPipeRecognition() {
         addDebugLog('Loading gesture recognizer model...');
         setModelLoadingStatus(prev => ({ ...prev, gesture: 'Loading...' }));
         
-        // Create gesture recognizer
+        // Create gesture recognizer with optimized settings
         const gestureRecognizer = await window.GestureRecognizer.createFromOptions(visionRef.current, {
           baseOptions: {
             modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task',
             delegate: 'GPU'
           },
-          runningMode: runningModeRef.current,
+          runningMode: "VIDEO",  // Always use VIDEO mode from the start
           numHands: 2
         });
         
@@ -353,6 +402,15 @@ function MediaPipeRecognition() {
     
     if (gestureEnabled) {
       initializeGestureRecognizer();
+    } else if (gestureRecognizerRef.current) {
+      // Close the model if disabled to free resources
+      try {
+        gestureRecognizerRef.current.close();
+        gestureRecognizerRef.current = null;
+        addDebugLog('Closed gesture recognizer');
+      } catch (e) {
+        console.error('Error closing gesture recognizer:', e);
+      }
     }
   }, [gestureEnabled]);
   
@@ -370,35 +428,7 @@ function MediaPipeRecognition() {
       return;
     }
     
-    // Set running mode to VIDEO if it's not already
-    const updateRunningModes = async () => {
-      try {
-        if (runningModeRef.current !== "VIDEO") {
-          runningModeRef.current = "VIDEO";
-          addDebugLog('Changing running mode to VIDEO');
-          
-          // Update running mode for each enabled detector
-          if (poseEnabled && poseLandmarkerRef.current) {
-            await poseLandmarkerRef.current.setOptions({ runningMode: "VIDEO" });
-          }
-          
-          if (faceEnabled && faceLandmarkerRef.current) {
-            await faceLandmarkerRef.current.setOptions({ runningMode: "VIDEO" });
-          }
-          
-          if (gestureEnabled && gestureRecognizerRef.current) {
-            await gestureRecognizerRef.current.setOptions({ runningMode: "VIDEO" });
-          }
-        }
-      } catch (err) {
-        console.error('Error updating running mode:', err);
-        addDebugLog(`Error updating running mode: ${err.message}`);
-      }
-    };
-    
-    updateRunningModes();
-    
-    const canvasCtx = canvas.getContext('2d');
+    const canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
     const drawingUtils = drawingUtilsRef.current;
     
     // Function to predict webcam frames
@@ -406,36 +436,140 @@ function MediaPipeRecognition() {
       // Get current time for performance measurement
       const startTimeMs = performance.now();
       
-      // Only process if video time has changed
-      if (lastVideoTimeRef.current !== video.currentTime) {
+      // Only process if video is playing and time has changed
+      if (video.readyState >= 2 && lastVideoTimeRef.current !== video.currentTime) {
         lastVideoTimeRef.current = video.currentTime;
         
-        // Clear the canvas
+        // Clear the canvas once at the beginning of processing the frame
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Process frames with each enabled detector
         try {
-          // Pose detection
-          if (poseEnabled && poseLandmarkerRef.current) {
-            const poseResults = poseLandmarkerRef.current.detectForVideo(video, startTimeMs);
-            
-            // Draw pose landmarks
-            if (poseResults.landmarks) {
-              for (const landmark of poseResults.landmarks) {
-                drawingUtils.drawConnectors(
-                  landmark,
-                  window.PoseLandmarker.POSE_CONNECTIONS,
-                  { color: '#00FF00', lineWidth: 2 }
-                );
-                drawingUtils.drawLandmarks(
-                  landmark,
-                  { color: '#00FF00', radius: 3 }
-                );
+          // Process all detections before drawing anything
+          let faceResults = null;
+          let poseResults = null;
+          let gestureResults = null;
+          
+          // First collect all results from each detector
+          if (faceEnabled && faceLandmarkerRef.current) {
+            try {
+              detectionStatsRef.current.face.count++;
+              faceResults = faceLandmarkerRef.current.detectForVideo(video, startTimeMs);
+              if (faceResults && faceResults.faceLandmarks && faceResults.faceLandmarks.length > 0) {
+                detectionStatsRef.current.face.success++;
+                detectionStatsRef.current.face.lastFrameDetected = true;
+              } else {
+                detectionStatsRef.current.face.lastFrameDetected = false;
               }
+            } catch (err) {
+              console.error('Face detection error:', err);
+              detectionStatsRef.current.face.lastFrameDetected = false;
+            }
+          }
+          
+          if (poseEnabled && poseLandmarkerRef.current) {
+            try {
+              detectionStatsRef.current.pose.count++;
+              poseResults = poseLandmarkerRef.current.detectForVideo(video, startTimeMs);
+              if (poseResults && poseResults.landmarks && poseResults.landmarks.length > 0) {
+                detectionStatsRef.current.pose.success++;
+                detectionStatsRef.current.pose.lastFrameDetected = true;
+              } else {
+                detectionStatsRef.current.pose.lastFrameDetected = false;
+              }
+            } catch (err) {
+              console.error('Pose detection error:', err);
+              detectionStatsRef.current.pose.lastFrameDetected = false;
+            }
+          }
+          
+          if (gestureEnabled && gestureRecognizerRef.current) {
+            try {
+              detectionStatsRef.current.gesture.count++;
+              gestureResults = gestureRecognizerRef.current.recognizeForVideo(video, startTimeMs);
+              if (gestureResults && gestureResults.landmarks && gestureResults.landmarks.length > 0) {
+                detectionStatsRef.current.gesture.success++;
+                detectionStatsRef.current.gesture.lastFrameDetected = true;
+              } else {
+                detectionStatsRef.current.gesture.lastFrameDetected = false;
+              }
+            } catch (err) {
+              console.error('Gesture detection error:', err);
+              detectionStatsRef.current.gesture.lastFrameDetected = false;
+            }
+          }
+          
+          // Now draw all results in order: face (background), pose (middle), hand gestures (top)
+          
+          // Draw face landmarks first (if detected)
+          if (faceResults && faceResults.faceLandmarks && faceResults.faceLandmarks.length > 0) {
+            for (const landmarks of faceResults.faceLandmarks) {
+              // Draw face mesh with subtle color
+              drawingUtils.drawConnectors(
+                landmarks,
+                window.FaceLandmarker.FACE_LANDMARKS_TESSELATION,
+                { color: '#C0C0C040', lineWidth: 0.75 } // More transparent for less interference
+              );
+              
+              // Draw eyes with vibrant colors
+              drawingUtils.drawConnectors(
+                landmarks,
+                window.FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE,
+                { color: '#FF303090', lineWidth: 1.5 }
+              );
+              drawingUtils.drawConnectors(
+                landmarks,
+                window.FaceLandmarker.FACE_LANDMARKS_LEFT_EYE,
+                { color: '#30FF3090', lineWidth: 1.5 }
+              );
+              
+              // Draw face oval and lips with clearer colors
+              drawingUtils.drawConnectors(
+                landmarks,
+                window.FaceLandmarker.FACE_LANDMARKS_FACE_OVAL,
+                { color: '#E0E0E080', lineWidth: 1.5 }
+              );
+              drawingUtils.drawConnectors(
+                landmarks,
+                window.FaceLandmarker.FACE_LANDMARKS_LIPS,
+                { color: '#E0A0A080', lineWidth: 1.5 }
+              );
+            }
+            
+            // Update face log with throttling
+            const now = performance.now();
+            if (now - lastFaceUpdateTimeRef.current > 200) {
+              setFaceLog(`Detected ${faceResults.faceLandmarks.length} face(s)`);
+              lastFaceUpdateTimeRef.current = now;
+            }
+          } else if (faceEnabled) {
+            // Update face log with throttling
+            const now = performance.now();
+            if (now - lastFaceUpdateTimeRef.current > 200) {
+              setFaceLog('No faces detected');
+              lastFaceUpdateTimeRef.current = now;
+            }
+          }
+          
+          // Draw pose landmarks second (if detected)
+          if (poseResults && poseResults.landmarks && poseResults.landmarks.length > 0) {
+            for (const landmark of poseResults.landmarks) {
+              // Draw pose skeleton with high visibility
+              drawingUtils.drawConnectors(
+                landmark,
+                window.PoseLandmarker.POSE_CONNECTIONS,
+                { color: '#00FF00', lineWidth: 3 } // Thicker, brighter lines
+              );
+              
+              // Draw pose landmarks with bigger points
+              drawingUtils.drawLandmarks(
+                landmark,
+                { color: '#00FF00', radius: 4 }
+              );
             }
             
             // Update pose log with throttling to avoid excessive renders
-            if (poseResults.landmarks && poseResults.landmarks.length > 0) {
+            if (poseResults.landmarks.length > 0) {
               currentPoseLogRef.current = `Detected ${poseResults.landmarks.length} person(s)`;
               
               // Only update state every 200ms to prevent excessive re-renders
@@ -454,78 +588,54 @@ function MediaPipeRecognition() {
                 lastPoseUpdateTimeRef.current = now;
               }
             }
-          }
-          
-          // Face detection (simplified since focusing on pose)
-          if (faceEnabled && faceLandmarkerRef.current) {
-            const faceResults = faceLandmarkerRef.current.detectForVideo(video, startTimeMs);
-            
-            // Draw face landmarks
-            if (faceResults.faceLandmarks) {
-              for (const landmarks of faceResults.faceLandmarks) {
-                drawingUtils.drawConnectors(
-                  landmarks,
-                  window.FaceLandmarker.FACE_LANDMARKS_TESSELATION,
-                  { color: '#C0C0C070', lineWidth: 1 }
-                );
-                drawingUtils.drawConnectors(
-                  landmarks,
-                  window.FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE,
-                  { color: '#FF3030' }
-                );
-                drawingUtils.drawConnectors(
-                  landmarks,
-                  window.FaceLandmarker.FACE_LANDMARKS_LEFT_EYE,
-                  { color: '#30FF30' }
-                );
-                drawingUtils.drawConnectors(
-                  landmarks,
-                  window.FaceLandmarker.FACE_LANDMARKS_FACE_OVAL,
-                  { color: '#E0E0E0' }
-                );
-                drawingUtils.drawConnectors(
-                  landmarks,
-                  window.FaceLandmarker.FACE_LANDMARKS_LIPS,
-                  { color: '#E0E0E0' }
-                );
-              }
-              
-              setFaceLog(`Detected ${faceResults.faceLandmarks.length} face(s)`);
-            } else {
-              setFaceLog('No faces detected');
+          } else if (poseEnabled) {
+            // Update log for no poses
+            const now = performance.now();
+            if (now - lastPoseUpdateTimeRef.current > 200) {
+              setPoseLog('No poses detected');
+              lastPoseUpdateTimeRef.current = now;
             }
           }
           
-          // Gesture recognition (simplified since focusing on pose)
-          if (gestureEnabled && gestureRecognizerRef.current) {
-            const gestureResults = gestureRecognizerRef.current.recognizeForVideo(video, startTimeMs);
-            
-            // Draw hand landmarks
-            if (gestureResults.landmarks) {
-              for (const landmarks of gestureResults.landmarks) {
-                drawingUtils.drawConnectors(
-                  landmarks,
-                  window.GestureRecognizer.HAND_CONNECTIONS,
-                  { color: '#00FFFF', lineWidth: 2 }
-                );
-                drawingUtils.drawLandmarks(
-                  landmarks,
-                  { color: '#FF0000', radius: 2 }
-                );
-              }
+          // Draw gesture recognition last (if detected) - on top layer
+          if (gestureResults && gestureResults.landmarks && gestureResults.landmarks.length > 0) {
+            for (const landmarks of gestureResults.landmarks) {
+              // Draw hand connections with vivid colors
+              drawingUtils.drawConnectors(
+                landmarks,
+                window.GestureRecognizer.HAND_CONNECTIONS,
+                { color: '#00FFFF', lineWidth: 3 }
+              );
+              
+              // Draw landmarks with contrast color
+              drawingUtils.drawLandmarks(
+                landmarks,
+                { color: '#FF0000', radius: 4 }
+              );
             }
             
-            // Update gesture log
-            if (gestureResults.gestures && 
-                gestureResults.gestures.length > 0 && 
-                gestureResults.gestures[0].length > 0) {
-              const gesture = gestureResults.gestures[0][0];
-              const hand = gestureResults.handedness && gestureResults.handedness[0] ? 
-                        gestureResults.handedness[0][0].displayName : 'Unknown';
-              
-              setGestureLog(`Detected ${gesture.categoryName} (${(gesture.score * 100).toFixed(0)}%) - ${hand} hand`);
-            } else {
+            // Update gesture log with throttling
+            const now = performance.now();
+            if (now - lastGestureUpdateTimeRef.current > 200) {
+              if (gestureResults.gestures && 
+                  gestureResults.gestures.length > 0 && 
+                  gestureResults.gestures[0].length > 0) {
+                const gesture = gestureResults.gestures[0][0];
+                const hand = gestureResults.handedness && gestureResults.handedness[0] ? 
+                          gestureResults.handedness[0][0].displayName : 'Unknown';
+                
+                setGestureLog(`Detected ${gesture.categoryName} (${(gesture.score * 100).toFixed(0)}%) - ${hand} hand`);
+              } else {
+                setGestureLog('No gestures detected');
+              }
+              lastGestureUpdateTimeRef.current = now;
+            }
+          } else if (gestureEnabled) {
+            // Update log for no gestures
+            const now = performance.now();
+            if (now - lastGestureUpdateTimeRef.current > 200) {
               setGestureLog('No gestures detected');
+              lastGestureUpdateTimeRef.current = now;
             }
           }
           
@@ -544,19 +654,22 @@ function MediaPipeRecognition() {
         }
       }
       
-      // Continue the detection loop
+      // Continue the detection loop if the camera is still running and at least one detection is enabled
       if (cameraRunning && (faceEnabled || poseEnabled || gestureEnabled)) {
-        requestAnimationFrame(predictWebcam);
+        requestAnimationFrameIdRef.current = requestAnimationFrame(predictWebcam);
       }
     };
     
     // Start the detection loop
-    requestAnimationFrame(predictWebcam);
+    requestAnimationFrameIdRef.current = requestAnimationFrame(predictWebcam);
     
     // Cleanup function
     return () => {
-      // No need to explicitly cancel animation frame as the conditional
-      // check in the predictWebcam function will stop the loop
+      // Cancel the animation frame when the component unmounts or dependencies change
+      if (requestAnimationFrameIdRef.current) {
+        cancelAnimationFrame(requestAnimationFrameIdRef.current);
+        requestAnimationFrameIdRef.current = null;
+      }
     };
   }, [cameraRunning, faceEnabled, poseEnabled, gestureEnabled]);
   
@@ -564,6 +677,12 @@ function MediaPipeRecognition() {
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      
+      // Cancel any pending animation frame
+      if (requestAnimationFrameIdRef.current) {
+        cancelAnimationFrame(requestAnimationFrameIdRef.current);
+        requestAnimationFrameIdRef.current = null;
+      }
       
       // Close all models
       if (faceLandmarkerRef.current) {
