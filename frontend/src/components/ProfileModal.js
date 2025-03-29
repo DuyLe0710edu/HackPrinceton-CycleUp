@@ -134,9 +134,6 @@ function ProfileModal({ isOpen, onClose, onSave, currentProfile }) {
   
   // Classic pencil sketch effect
   const createClassicPencilSketch = async (canvas) => {
-    // Get image data from canvas
-    const ctx = canvas.getContext('2d');
-    
     // Create a new canvas for the sketch
     const sketchCanvas = document.createElement('canvas');
     sketchCanvas.width = canvas.width;
@@ -204,8 +201,6 @@ function ProfileModal({ isOpen, onClose, onSave, currentProfile }) {
   
   // Bold outline sketch effect
   const createOutlineSketch = async (canvas) => {
-    const ctx = canvas.getContext('2d');
-    
     // Create a new canvas for the sketch
     const sketchCanvas = document.createElement('canvas');
     sketchCanvas.width = canvas.width;
@@ -241,8 +236,6 @@ function ProfileModal({ isOpen, onClose, onSave, currentProfile }) {
   
   // Charcoal sketch effect
   const createCharcoalSketch = async (canvas) => {
-    const ctx = canvas.getContext('2d');
-    
     // Create a new canvas for the sketch
     const sketchCanvas = document.createElement('canvas');
     sketchCanvas.width = canvas.width;
@@ -281,8 +274,6 @@ function ProfileModal({ isOpen, onClose, onSave, currentProfile }) {
   
   // Comic style effect
   const createComicSketch = async (canvas) => {
-    const ctx = canvas.getContext('2d');
-    
     // Create a new canvas for the sketch
     const sketchCanvas = document.createElement('canvas');
     sketchCanvas.width = canvas.width;

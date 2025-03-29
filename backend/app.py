@@ -57,21 +57,63 @@ def detection_loop():
             print(f"Model not found at {model_path}, using default model")
             model = load_model("yolov8n.pt")
     
-    # Use webcam
-    cap = cv2.VideoCapture(0)
-    
-    if not cap.isOpened():
-        print("Error: Could not open camera")
+    # If model is still None after loading attempts, exit the thread
+    if model is None:
+        print("ERROR: Failed to load any model, detection cannot continue")
         detection_running = False
         return
     
-    print("Detection started")
+    # Use only the built-in camera (index 0)
+    print("Opening built-in camera (index 0)...")
+    cap = cv2.VideoCapture(0)
     
+    # Try with macOS-specific settings if regular opening fails
+    if not cap.isOpened():
+        try:
+            print("Trying macOS specific camera settings...")
+            cap = cv2.VideoCapture(0)
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+            cap.set(cv2.CAP_PROP_FPS, 30)
+        except Exception as e:
+            print(f"Error with macOS camera settings: {e}")
+    
+    if not cap.isOpened():
+        print("Error: Could not open built-in camera")
+        detection_running = False
+        return
+    
+    print("Detection started with built-in camera")
+    
+    # Set camera properties for better performance
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    
+    # Read and discard the first few frames to let the camera warm up
+    for _ in range(5):
+        cap.read()
+        time.sleep(0.1)
+    
+    frame_count = 0
     while detection_running:
         ret, frame = cap.read()
         if not ret:
             print("Error: Failed to capture image")
-            break
+            # Try to reconnect a few times before giving up
+            frame_count += 1
+            if frame_count > 5:  # If we fail 5 frames in a row, try to reconnect
+                print("Attempting to reconnect to camera...")
+                cap.release()
+                cap = cv2.VideoCapture(0)
+                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+                cap.set(cv2.CAP_PROP_FPS, 30)
+                frame_count = 0
+                time.sleep(1)  # Wait a second before retrying
+            continue
+        
+        frame_count = 0  # Reset counter on successful frame
+        
+        # Flip the frame horizontally for a more natural view
+        frame = cv2.flip(frame, 1)
         
         # Process the frame
         processed_frame, detections = process_frame(frame, model)
@@ -90,7 +132,8 @@ def detection_loop():
         time.sleep(0.05)
     
     # Release camera
-    cap.release()
+    if cap and cap.isOpened():
+        cap.release()
     print("Camera released")
 
 # Routes

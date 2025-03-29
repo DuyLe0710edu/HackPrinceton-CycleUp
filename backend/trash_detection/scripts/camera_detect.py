@@ -6,74 +6,121 @@ import cv2
 from ultralytics import YOLO
 import time
 import os
+import numpy as np
 
 def load_model(model_path):
-    """Load and return the YOLO model"""
+    """
+    Load the YOLOv8 detection model
+    """
     try:
-        model = YOLO(model_path)
-        print(f"Model loaded from {model_path}")
-        return model
+        # Handle PyTorch 2.6+ changes regarding weights_only parameter
+        import torch
+        from ultralytics import YOLO
+        
+        # Add DetectionModel to safe globals (for newer PyTorch versions)
+        import torch.serialization
+        from ultralytics.nn.tasks import DetectionModel
+        torch.serialization.add_safe_globals([DetectionModel])
+        
+        print(f"Loading model from {model_path}")
+        return YOLO(model_path)
     except Exception as e:
-        print(f"Error loading model: {e}")
-        return None
+        # Fall back to loading with weights_only=False if the first attempt fails
+        try:
+            print(f"First load attempt failed, trying with weights_only=False")
+            import torch
+            # Explicitly use weights_only=False for older models
+            model = torch.load(model_path, weights_only=False)
+            print(f"Loaded model with weights_only=False: {type(model)}")
+            return model
+        except Exception as e2:
+            print(f"Error loading model: {e2}")
+            # As a fallback, try to use the default model
+            try:
+                from ultralytics import YOLO
+                return YOLO("yolov8n.pt")
+            except Exception as e3:
+                print(f"Failed to load fallback model: {e3}")
+                raise e  # Raise the original error if all attempts fail
 
 def process_frame(frame, model):
     """Process a single frame with the model and return the processed frame and detections"""
     if model is None:
         return frame, []
     
-    # Resize for faster processing
-    frame = cv2.resize(frame, (640, 480))
+    # Check if frame is empty or None
+    if frame is None or frame.size == 0:
+        print("Warning: Empty frame received")
+        # Return an empty frame with a warning message
+        height, width = 480, 640
+        empty_frame = np.zeros((height, width, 3), dtype=np.uint8)
+        cv2.putText(empty_frame, "No camera feed", (width//4, height//2),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        return empty_frame, []
     
-    # Perform detection
-    results = model(frame, conf=0.25)
+    # Ensure frame is properly sized (without changing aspect ratio)
+    height, width = frame.shape[:2]
+    if width > 640:
+        scale = 640 / width
+        frame = cv2.resize(frame, (640, int(height * scale)))
     
-    # Class names for nice labels
-    class_names = ['glass', 'metal', 'paper', 'plastic', 'undefined']
-    
-    # Define colors for each class (BGR format)
-    colors = {
-        'glass': (0, 255, 0),     # Green
-        'metal': (0, 0, 255),     # Red
-        'paper': (255, 0, 0),     # Blue
-        'plastic': (0, 255, 255), # Yellow
-        'undefined': (255, 0, 255)  # Purple
-    }
-    
-    # Process results
-    detections = []
-    for result in results:
-        boxes = result.boxes
-        for box in boxes:
-            # Get box coordinates and class
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            cls = int(box.cls[0])
-            conf = float(box.conf[0])
-            
-            # Get class name (ensure it's within range)
-            class_name = class_names[cls] if cls < len(class_names) else "unknown"
-            color = colors.get(class_name, (255, 255, 255))  # Default white if not found
-            
-            # Draw bounding box
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            
-            # Draw label (text with background)
-            label = f"{class_name} {conf:.2f}"
-            text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
-            cv2.rectangle(frame, (x1, y1-text_size[1]-10), (x1+text_size[0], y1), color, -1)
-            cv2.putText(frame, label, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-            
-            # Add to detections list
-            detections.append({
-                'class': class_name,
-                'confidence': conf,
-                'x': x1,
-                'y': y1,
-                'width': x2 - x1,
-                'height': y2 - y1
-            })
-    
-    return frame, detections
+    try:
+        # Perform detection
+        results = model(frame, conf=0.25)
+        
+        # Class names for nice labels
+        class_names = ['glass', 'metal', 'paper', 'plastic', 'undefined']
+        
+        # Define colors for each class (BGR format)
+        colors = {
+            'glass': (0, 255, 0),     # Green
+            'metal': (0, 0, 255),     # Red
+            'paper': (255, 0, 0),     # Blue
+            'plastic': (0, 255, 255), # Yellow
+            'undefined': (255, 0, 255)  # Purple
+        }
+        
+        # Process results
+        detections = []
+        for result in results:
+            boxes = result.boxes
+            for box in boxes:
+                # Get box coordinates and class
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                cls = int(box.cls[0])
+                conf = float(box.conf[0])
+                
+                # Get class name (ensure it's within range)
+                class_name = class_names[cls] if cls < len(class_names) else "unknown"
+                color = colors.get(class_name, (255, 255, 255))  # Default white if not found
+                
+                # Draw bounding box
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                
+                # Draw label (text with background)
+                label = f"{class_name} {conf:.2f}"
+                text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
+                cv2.rectangle(frame, (x1, y1-text_size[1]-10), (x1+text_size[0], y1), color, -1)
+                cv2.putText(frame, label, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                
+                # Add to detections list
+                detections.append({
+                    'class': class_name,
+                    'confidence': conf,
+                    'x': x1,
+                    'y': y1,
+                    'width': x2 - x1,
+                    'height': y2 - y1
+                })
+        
+        return frame, detections
+        
+    except Exception as e:
+        # Handle any exceptions gracefully
+        print(f"Error processing frame: {e}")
+        cv2.putText(frame, "Error in detection", (10, 30), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        return frame, []
 
 def main():
     """Main function for standalone execution"""

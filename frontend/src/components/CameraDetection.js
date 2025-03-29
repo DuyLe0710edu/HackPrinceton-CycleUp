@@ -1,6 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
 import './CameraDetection.css';
-import { startDetection, stopDetection, connectToSocket } from '../services/api';
+import { 
+  startDetection, 
+  stopDetection, 
+  connectToSocket,
+  getBackendInfo  // Import this properly at the top
+} from '../services/api';
 
 function CameraDetection({ onDetectionUpdate }) {
   const [isStreaming, setIsStreaming] = useState(false);
@@ -62,6 +67,7 @@ function CameraDetection({ onDetectionUpdate }) {
       }
       
       setIsProcessing(false);
+      setIsStreaming(false);
       onDetectionUpdate([]);
     } catch (err) {
       console.error("Error stopping detection:", err);
@@ -82,7 +88,8 @@ function CameraDetection({ onDetectionUpdate }) {
     // Create a function to check backend availability
     const checkBackendStatus = async () => {
       try {
-        await fetch('http://localhost:5000/api/info');
+        // Use the properly imported getBackendInfo function
+        await getBackendInfo();
         setError(null);
       } catch (err) {
         setError("Cannot connect to backend. Please ensure the backend server is running.");
