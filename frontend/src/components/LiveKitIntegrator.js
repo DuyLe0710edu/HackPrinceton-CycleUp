@@ -65,10 +65,10 @@ const LiveKitIntegrator = ({ onSendMessage, onMessageReceived, children }) => {
         onClick={toggleVoiceChat}
         style={{
           position: 'fixed',
-          bottom: '20px',
-          right: '20px',
+          bottom: '24px',
+          right: '24px',
           zIndex: 1000,
-          backgroundColor: '#4F46E5',
+          background: 'linear-gradient(135deg, #4F46E5, #6366F1)',
           color: 'white',
           border: 'none',
           borderRadius: '50%',
@@ -77,12 +77,14 @@ const LiveKitIntegrator = ({ onSendMessage, onMessageReceived, children }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 6px 16px rgba(79, 70, 229, 0.3)',
           cursor: 'pointer',
-          fontSize: '24px'
+          fontSize: '24px',
+          transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+          transform: showVoiceChat ? 'scale(0.92)' : 'scale(1)'
         }}
       >
-        🎤
+        {showVoiceChat ? '✕' : '🎤'}
       </button>
       
       {/* LiveKit component (voice chat) */}
@@ -91,33 +93,52 @@ const LiveKitIntegrator = ({ onSendMessage, onMessageReceived, children }) => {
           className="voice-chat-container"
           style={{
             position: 'fixed',
-            bottom: '90px',
-            right: '20px',
-            width: '350px',
-            maxWidth: 'calc(100vw - 40px)',
+            bottom: '100px',
+            right: '24px',
+            width: '380px',
+            maxWidth: 'calc(100vw - 48px)',
             backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            borderRadius: '16px',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 6px 12px rgba(0, 0, 0, 0.08)',
             zIndex: 1000,
-            overflow: 'hidden'
+            overflow: 'hidden',
+            border: '1px solid rgba(230, 230, 230, 0.8)',
+            animation: 'slideIn 0.3s ease forwards'
           }}
         >
           <div className="voice-chat-header" style={{
-            padding: '12px 16px',
-            borderBottom: '1px solid #f0f0f0',
+            padding: '16px 20px',
+            borderBottom: '1px solid rgba(240, 240, 240, 0.8)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            background: 'linear-gradient(to right, rgba(249, 250, 251, 0.8), white)'
           }}>
-            <h3 style={{ margin: 0, fontSize: '16px' }}>Voice Chat with AI Teacher</h3>
+            <h3 style={{ 
+              margin: 0, 
+              fontSize: '17px', 
+              fontWeight: '600',
+              color: '#1F2937',
+              letterSpacing: '0.01em'
+            }}>Voice Chat with AI Teacher</h3>
             <button 
               onClick={toggleVoiceChat}
               style={{
                 background: 'none',
                 border: 'none',
-                fontSize: '18px',
-                cursor: 'pointer'
+                fontSize: '20px',
+                cursor: 'pointer',
+                color: '#6B7280',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                transition: 'all 0.2s ease'
               }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(243, 244, 246, 0.8)'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               ✕
             </button>
@@ -137,15 +158,29 @@ const LiveKitIntegrator = ({ onSendMessage, onMessageReceived, children }) => {
       {isLoading && (
         <div style={{ 
           position: 'fixed', 
-          bottom: '90px', 
-          right: '20px',
-          padding: '10px',
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          zIndex: 1000
+          bottom: '100px', 
+          right: '24px',
+          padding: '12px 16px',
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          border: '1px solid rgba(230, 230, 240, 0.7)'
         }}>
-          Initializing voice chat...
+          <div style={{
+            width: '16px',
+            height: '16px',
+            borderRadius: '50%',
+            border: '2px solid rgba(99, 102, 241, 0.3)',
+            borderTopColor: '#6366F1',
+            animation: 'spin 0.8s linear infinite'
+          }}></div>
+          <span style={{ fontSize: '14px', fontWeight: '500', color: '#4B5563' }}>
+            Initializing voice chat...
+          </span>
         </div>
       )}
       
@@ -153,18 +188,42 @@ const LiveKitIntegrator = ({ onSendMessage, onMessageReceived, children }) => {
       {error && (
         <div style={{ 
           position: 'fixed', 
-          bottom: '90px', 
-          right: '20px',
-          padding: '10px',
-          backgroundColor: 'rgba(254, 226, 226, 0.9)',
+          bottom: '100px', 
+          right: '24px',
+          padding: '12px 16px',
+          backgroundColor: 'white',
           color: '#DC2626',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          zIndex: 1000
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          border: '1px solid rgba(252, 165, 165, 0.5)',
+          maxWidth: '300px'
         }}>
-          {error}
+          <div style={{ 
+            fontSize: '18px',
+            color: '#DC2626'
+          }}>⚠️</div>
+          <span style={{ fontSize: '14px', fontWeight: '500' }}>
+            {error}
+          </span>
         </div>
       )}
+      
+      <style>
+        {`
+          @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 };

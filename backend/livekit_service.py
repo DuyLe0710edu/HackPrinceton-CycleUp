@@ -36,15 +36,19 @@ def generate_token(room_name, participant_name, is_ai=False):
             "roomJoin": True,
             "room": room_name,
             "canPublish": not is_ai,  # AI doesn't publish, only subscribe
-            "canSubscribe": True
+            "canSubscribe": True,
+            "roomAdmin": False,       # No admin privileges for regular clients
+            "roomCreate": False,      # Don't allow clients to create rooms
+            "canPublishData": True    # Allow data channel publishing
         }
         
         # Create a token with the grant
         token_data = {
-            "exp": int(time.time()) + 3600,  # 1 hour
+            "exp": int(time.time()) + 14400,  # 4 hours (extended from 1 hour)
             "iss": LIVEKIT_API_KEY,
-            "nbf": int(time.time()),
+            "nbf": int(time.time()) - 60,    # Allow for slight clock skew (valid from 1 minute ago)
             "sub": participant_name,
+            "jti": f"{room_name}-{participant_name}-{int(time.time())}",  # Unique token ID
             "video": video_grant
         }
         
@@ -67,9 +71,13 @@ def get_ai_and_user_tokens(room_name, user_name="user"):
     try:
         print(f"Getting tokens for room: {room_name}, user: {user_name}")
         
+        # Generate AI token (only subscription, no publishing)
         ai_token = generate_token(room_name, "ai-assistant", is_ai=True)
+        
+        # Generate user token (can publish and subscribe)
         user_token = generate_token(room_name, user_name)
         
+        # Return all necessary information
         result = {
             "ai_token": ai_token,
             "user_token": user_token,
