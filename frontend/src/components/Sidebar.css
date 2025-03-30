@@ -1,6 +1,7 @@
 .sidebar {
   width: 250px;
-  background-color: var(--color-sidebar-bg);
+  background-color: #f8f9fa;
+  background-image: linear-gradient(to bottom, #f8fffa, #f2f9f4);
   height: calc(100vh - 60px);
   position: fixed;
   left: 0;
@@ -9,8 +10,9 @@
   transition: transform var(--transition-speed);
   display: flex;
   flex-direction: column;
-  box-shadow: var(--box-shadow);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   overflow-y: auto;
+  border-right: 1px solid #e9f2eb;
 }
 
 .sidebar.closed {
@@ -18,118 +20,120 @@
 }
 
 .sidebar-header {
-  padding: 16px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 20px 16px;
+  border-bottom: 1px solid #e9f2eb;
+  background-color: rgba(76, 175, 80, 0.08);
 }
 
 .workspace-title {
-  font-weight: 600;
-  font-size: 16px;
-  color: var(--color-text-primary);
+  font-weight: 700;
+  font-size: 18px;
+  color: #2e7d32;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.7);
+}
+
+.eco-logo {
+  margin-right: 4px;
+  filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .sidebar-nav {
   flex: 1;
-  padding: 8px 0;
+  padding: 12px 0;
 }
 
 .nav-sections {
   list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
 .nav-section {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .section-title {
   display: block;
-  padding: 0 16px;
-  margin-bottom: 8px;
-  font-size: 12px;
+  padding: 0 20px;
+  margin-bottom: 10px;
+  font-size: 13px;
   text-transform: uppercase;
-  color: var(--color-text-secondary);
+  color: #757575;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.7px;
 }
 
 .nav-items {
   list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
+  padding: 10px 16px;
   cursor: pointer;
-  border-radius: 4px;
-  margin: 2px 8px;
-  transition: background-color var(--transition-speed);
+  border-radius: 6px;
+  margin: 3px 8px;
+  transition: all 0.2s ease;
+  color: #4b5563;
 }
 
 .nav-item:hover {
-  background-color: var(--color-hover);
+  background-color: rgba(76, 175, 80, 0.08);
+  color: #2e7d32;
 }
 
 .nav-item.active {
-  background-color: var(--color-hover);
+  background-color: rgba(76, 175, 80, 0.15);
+  color: #2e7d32;
   font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .nav-icon {
-  margin-right: 8px;
-  font-size: 16px;
-  width: 20px;
+  margin-right: 12px;
+  font-size: 18px;
+  width: 22px;
   text-align: center;
+  opacity: 0.9;
 }
 
 .nav-text {
   font-size: 14px;
+  font-weight: 500;
 }
 
 .sidebar-footer {
   padding: 16px;
-  border-top: 1px solid var(--color-border);
-}
-
-.new-page-btn {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding: 8px 12px;
-  background-color: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  transition: background-color var(--transition-speed);
-}
-
-.new-page-btn:hover {
-  background-color: var(--color-hover);
-}
-
-.plus-icon {
-  margin-right: 8px;
-  font-weight: 700;
+  border-top: 1px solid #e9f2eb;
+  background-color: rgba(76, 175, 80, 0.03);
 }
 
 .create-profile-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   width: 100%;
-  padding: 8px 12px;
-  background-color: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  padding: 10px 12px;
+  background-color: #4CAF50;
+  border: none;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-primary);
-  transition: background-color var(--transition-speed);
+  color: white;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
 }
 
 .create-profile-btn:hover {
-  background-color: var(--color-hover);
+  background-color: #43a047;
+  box-shadow: 0 3px 6px rgba(76, 175, 80, 0.4);
+  transform: translateY(-1px);
 }
 
 .camera-icon {
@@ -142,10 +146,6 @@
   display: flex;
   align-items: center;
   width: 100%;
-}
-
-.nav-item .nav-link:hover {
-  background-color: rgba(0, 0, 0, 0.05);
 }
 
 @media (max-width: 768px) {

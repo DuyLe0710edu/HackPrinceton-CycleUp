@@ -39,9 +39,97 @@
 }
 
 .app-title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   margin: 0;
+  display: flex;
+  align-items: center;
+  color: #2e7d32;
+  text-shadow: 0 0 2px rgba(46, 125, 50, 0.2);
+  letter-spacing: 0.5px;
+}
+
+.bicycle-icon {
+  margin-right: 8px;
+  filter: drop-shadow(0 0 4px rgba(76, 175, 80, 0.5));
+  animation: wheelSpin 8s linear infinite;
+}
+
+.eco-icon {
+  margin-right: 10px;
+  filter: drop-shadow(0 0 4px rgba(76, 175, 80, 0.5));
+  animation: treeGlow 3s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.title-glow {
+  background: linear-gradient(to right, #2e7d32, #4caf50, #81c784, #4caf50, #2e7d32);
+  background-size: 200% auto;
+  color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientFlow 2.5s ease infinite;
+}
+
+.title-up {
+  position: relative;
+  color: #2e7d32;
+  font-weight: 800;
+  animation: blink 2s infinite;
+}
+
+.title-up::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  border-radius: 5px;
+  opacity: 0.3;
+  z-index: -1;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes gradientFlow {
+  0% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+  100% { background-position: 0% center; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    box-shadow: 0 0 5px #4caf50, 0 0 10px #4caf50, 0 0 15px #4caf50;
+  }
+  50% { 
+    box-shadow: 0 0 10px #4caf50, 0 0 15px #4caf50, 0 0 20px #4caf50;
+  }
+}
+
+@keyframes wheelSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes treeGlow {
+  0% {
+    filter: drop-shadow(0 0 2px rgba(76, 175, 80, 0.5));
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(76, 175, 80, 0.7));
+    transform: scale(1.05) rotate(1deg);
+  }
+  100% {
+    filter: drop-shadow(0 0 2px rgba(76, 175, 80, 0.5));
+    transform: scale(1) rotate(0deg);
+  }
 }
 
 .header-center {

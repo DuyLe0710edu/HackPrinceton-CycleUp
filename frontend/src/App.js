@@ -12,12 +12,13 @@ import MediaPipeRecognition from './components/MediaPipeRecognition';
 import detectionStore from './services/detectionStore';
 import LiveKitIntegrator from './components/LiveKitIntegrator';
 import LandingPage from './components/LandingPage';
+import Stories from './components/Stories';
 
 // Wrapped component that can use Router hooks
 const RoutedAppLayout = ({ children }) => {
   const [detections, setDetections] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [currentView, setCurrentView] = useState('detection'); // 'detection', 'analytics', or 'recognition'
+  const [currentView, setCurrentView] = useState('detection'); // 'detection', 'analytics', 'recognition', or 'stories'
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   
@@ -30,6 +31,8 @@ const RoutedAppLayout = ({ children }) => {
       setCurrentView('recognition');
     } else if (location.pathname === '/dashboard') {
       setCurrentView('detection');
+    } else if (location.pathname === '/stories') {
+      setCurrentView('stories');
     }
   }, [location.pathname]);
 
@@ -62,6 +65,8 @@ const RoutedAppLayout = ({ children }) => {
       navigate('/dashboard');
     } else if (view === 'recognition') {
       navigate('/recognition');
+    } else if (view === 'stories') {
+      navigate('/stories');
     }
   };
   
@@ -95,8 +100,10 @@ const RoutedAppLayout = ({ children }) => {
                   <CameraDetection onDetectionUpdate={handleDetectionUpdate} />
                   <DetectionResults detections={detections} />
                 </>
-              ) : (
+              ) : currentView === 'analytics' ? (
                 <Analytics />
+              ) : (
+                <div /> // This is a placeholder that will be replaced by router content
               )
             )}
           </div>
@@ -129,6 +136,11 @@ function App() {
             >
               <MediaPipeRecognition />
             </LiveKitIntegrator>
+          </RoutedAppLayout>
+        } />
+        <Route path="/stories" element={
+          <RoutedAppLayout>
+            <Stories />
           </RoutedAppLayout>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
