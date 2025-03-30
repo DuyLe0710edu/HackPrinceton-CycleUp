@@ -597,8 +597,8 @@ Based on the multimodal data above:
 ## OUTPUT FORMAT
 Provide your analysis in two parts:
 
-1. DETAILED REASONING: Briefly explain your interpretation of the key indicators across facial expressions, posture, and gestures.
-2. ACTIVITY DESCRIPTION: Write a natural, conversational 1-2 sentence description of what the person is doing, including both physical actions and possible intentions or emotional states.
+1 - DETAILED REASONING: Briefly explain your interpretation of the key indicators across facial expressions, posture, and gestures.
+2 - ACTIVITY DESCRIPTION: Write a natural, conversational 1-2 sentence description of what the person is doing, including both physical actions and possible intentions or emotional states.
 
 Your description should be precise, insightful, and capture the nuance of human behavior based on this multimodal data.
 """
