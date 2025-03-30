@@ -64,29 +64,50 @@ def initialize_camera():
             cap.release()
             time.sleep(0.5)  # Give time for camera to properly release
         
-        # Explicitly set environment variables
-        os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = 'video_codec;h264_videotoolbox'
+        print("Initializing camera with simplified approach...")
         
-        # Use camera index 0 (built-in camera)
+        # Use the simplest possible initialization method first
         cap = cv2.VideoCapture(0)
         
-        # Improve camera stability with explicit settings
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        cap.set(cv2.CAP_PROP_FPS, 30)
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        # For macOS, set specific properties
+        if sys.platform == 'darwin':
+            # Set preferred capture properties
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            
+            # Check if camera opened successfully
+            if not cap.isOpened():
+                print("First attempt failed, trying macOS AVFoundation backend...")
+                cap.release()
+                
+                # Try with explicit AVFoundation backend 
+                cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+                
+                # If still not working, try index 1 (sometimes needed for external cameras)
+                if not cap.isOpened():
+                    print("Trying camera index 1 with AVFoundation...")
+                    cap.release()
+                    cap = cv2.VideoCapture(1, cv2.CAP_AVFOUNDATION)
+        else:
+            # For non-macOS, set standard properties
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            cap.set(cv2.CAP_PROP_FPS, 30)
         
-        # Warmup the camera
-        for _ in range(10):
-            ret, _ = cap.read()
-            if not ret:
-                print("Warning: Camera warmup frame not read")
-        
-        if not cap.isOpened():
-            raise Exception("Could not open camera")
-        
-        camera_initialized = True
-        return {"success": True, "message": "Camera initialized successfully"}
+        # Final check and warmup
+        if cap.isOpened():
+            # Warm up the camera with a few reads
+            for _ in range(5):
+                ret, _ = cap.read()
+                if not ret:
+                    print("Warning: Camera warmup frame not read")
+            
+            camera_initialized = True
+            print("Camera initialized successfully")
+            return {"success": True, "message": "Camera initialized successfully"}
+        else:
+            raise Exception("Could not open camera after multiple attempts")
+    
     except Exception as e:
         print(f"Error initializing camera: {e}")
         camera_initialized = False
@@ -103,22 +124,50 @@ def detection_loop():
         
         detection_running = True
         
+        # Setup camera retry variables
+        last_successful_frame_time = time.time()
+        retry_count = 0
+        consecutive_failures = 0
+        
         # Process frames continuously while detection is active
         while detection_running:
+            # Check if camera is initialized
             if cap is None or not cap.isOpened():
-                print("Camera not initialized, reinitializing...")
+                print("Camera not initialized or closed, reinitializing...")
                 initialize_camera()
                 time.sleep(0.5)
                 continue
-                
-            # Read a frame
-            ret, frame = cap.read()
             
+            # Read a frame (with simpler error handling)
+            try:
+                ret, frame = cap.read()
+            except Exception as e:
+                print(f"Exception during camera read: {e}")
+                ret, frame = False, None
+            
+            # Handle failed reads
             if not ret or frame is None or frame.size == 0:
-                print("Could not read frame, trying again...")
-                time.sleep(0.1)
-                continue
+                consecutive_failures += 1
+                print(f"Failed to read frame (failure #{consecutive_failures})")
                 
+                # If we've had several consecutive failures, reinitialize camera
+                if consecutive_failures >= 5:
+                    print("Multiple consecutive failures, reinitializing camera...")
+                    if cap is not None:
+                        cap.release()
+                        cap = None
+                    initialize_camera()
+                    consecutive_failures = 0
+                    time.sleep(0.5)
+                else:
+                    # Short pause before retry
+                    time.sleep(0.1)
+                continue
+            
+            # Reset failure counter on successful frame read
+            consecutive_failures = 0
+            last_successful_frame_time = time.time()
+            
             # Flip the frame horizontally for a more natural view
             frame = cv2.flip(frame, 1)
             
@@ -126,18 +175,19 @@ def detection_loop():
             start_time = time.time()
             processed_frame, detections = process_frame(frame, model)
             
-            # Calculate and log inference time
+            # Calculate inference time
             inference_time = (time.time() - start_time) * 1000
             print(f"Inference time: {inference_time:.2f}ms")
             
-            # Convert processed frame to base64 for sending via WebSocket
+            # Convert processed frame to base64 for WebSocket
             base64_frame = frame_to_base64(processed_frame)
             
-            # Send the processed frame and detections to all connected clients
+            # Send the processed frame to connected clients
             socketio.emit('detection_update', {'frame': base64_frame, 'detections': detections})
             
-            # Throttle the loop to avoid overwhelming the system
+            # Small delay to avoid overwhelming the system
             time.sleep(0.01)
+
     except Exception as e:
         print(f"Error in detection loop: {e}")
     finally:
