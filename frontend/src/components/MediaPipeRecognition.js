@@ -34,11 +34,26 @@ function MediaPipeRecognition() {
   const [gestureLog, setGestureLog] = useState('No gesture detection running');
   const [detailedGestureLog, setDetailedGestureLog] = useState([]);
   
+  // State for chat bot
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    { sender: 'bot', text: 'Hello there, sweetheart! I\'m your charming teacher. I can help you learn about recycling and taking care of our beautiful planet. What would you like to talk about today?' }
+  ]);
+  const [userMessage, setUserMessage] = useState('');
+  
   // State to track errors
   const [error, setError] = useState(null);
   
   // State for FPS tracking
   const [fps, setFps] = useState(0);
+  
+  // State for detected items
+  const [detectedItems, setDetectedItems] = useState({
+    face: 0,
+    pose: 0,
+    gesture: 0,
+    total: 0
+  });
   
   // Track if component is mounted
   const isMountedRef = useRef(true);
@@ -523,6 +538,21 @@ function MediaPipeRecognition() {
       }
     }
   }, [gestureEnabled]);
+  
+  // Update detection statistics
+  const updateDetectionStats = useCallback(() => {
+    // Calculate total detections
+    const faceCount = detectionStatsRef.current.face.lastFrameDetected ? 1 : 0;
+    const poseCount = detectionStatsRef.current.pose.lastFrameDetected ? 1 : 0;
+    const gestureCount = detectionStatsRef.current.gesture.lastFrameDetected ? 1 : 0;
+    
+    setDetectedItems({
+      face: faceCount,
+      pose: poseCount,
+      gesture: gestureCount,
+      total: faceCount + poseCount + gestureCount
+    });
+  }, []);
   
   // Main detection loop
   useEffect(() => {
@@ -1050,6 +1080,9 @@ function MediaPipeRecognition() {
           if (endTimeMs - lastPoseUpdateTimeRef.current > 500) {
             setFps(Math.round(calculatedFps));
           }
+          
+          // Update detection statistics
+          updateDetectionStats();
         } catch (err) {
           console.error('Error in detection loop:', err);
           addDebugLog(`Error in detection loop: ${err.message}`);
@@ -1073,7 +1106,7 @@ function MediaPipeRecognition() {
         requestAnimationFrameIdRef.current = null;
       }
     };
-  }, [cameraRunning, faceEnabled, poseEnabled, gestureEnabled]);
+  }, [cameraRunning, faceEnabled, poseEnabled, gestureEnabled, updateDetectionStats]);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -1179,9 +1212,94 @@ function MediaPipeRecognition() {
       }
     };
   }, []);
-  
+
+  // Handle sending a message in the chat
+  const handleSendMessage = () => {
+    if (!userMessage.trim()) return;
+    
+    // Add user message to chat
+    const newMessage = { sender: 'user', text: userMessage };
+    setChatMessages(prev => [...prev, newMessage]);
+    
+    // Clear input field
+    setUserMessage('');
+    
+    // Add temporary "typing" indicator
+    setChatMessages(prev => [...prev, { sender: 'bot', text: '...', isTyping: true }]);
+    
+    // Get the most recent activity insight if available
+    const latestActivity = activityInsights.length > 0 ? activityInsights[0].text : '';
+    
+    // Get emotional state from face detection if available
+    let emotionData = 'Unknown';
+    if (faceEnabled && detectionStatsRef.current.face.lastFrameDetected) {
+      // Extract emotion indicators from face blendshapes
+      const faceLogText = faceLog;
+      if (faceLogText.includes('smile') || faceLogText.includes('Smile')) {
+        emotionData = 'Happy';
+      } else if (faceLogText.includes('frown') || faceLogText.includes('browDown')) {
+        emotionData = 'Concerned or focused';
+      } else if (faceLogText.includes('surprise') || faceLogText.includes('eyeWide')) {
+        emotionData = 'Surprised';
+      } else if (faceLog !== 'No face detection running') {
+        emotionData = 'Neutral';
+      }
+    }
+    
+    // Call the kindergarten teacher AI endpoint
+    fetch(`${backendUrl}/api/chat/kindergarten-teacher`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: userMessage,
+        activity_data: latestActivity,
+        emotion_data: emotionData
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Remove the typing indicator
+      setChatMessages(prev => prev.filter(msg => !msg.isTyping));
+      
+      if (data.success) {
+        // Add the AI response
+        setChatMessages(prev => [...prev, { 
+          sender: 'bot', 
+          text: data.response
+        }]);
+      } else {
+        // Add fallback response in case of error
+        setChatMessages(prev => [...prev, { 
+          sender: 'bot', 
+          text: "I'm sorry, sweetheart. I'm having a little trouble with my thinking right now. Can we try talking again in a moment?"
+        }]);
+        console.error('Error from kindergarten teacher AI:', data.error);
+      }
+    })
+    .catch(error => {
+      // Remove the typing indicator
+      setChatMessages(prev => prev.filter(msg => !msg.isTyping));
+      
+      // Add fallback response
+      setChatMessages(prev => [...prev, { 
+        sender: 'bot', 
+        text: "Oh dear, it seems I can't connect to my thinking help right now. Let's chat again in a little bit, okay?"
+      }]);
+      console.error('Error calling kindergarten teacher API:', error);
+    });
+  };
+
+  // Handle pressing Enter in the input field
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSendMessage();
+    }
+  };
+
   return (
-    <div className="mediapipe-recognition">
+    <div className={`mediapipe-recognition ${showChat ? 'chat-open' : ''}`}>
       <h1>MediaPipe Recognition</h1>
       
       {error && (
@@ -1191,278 +1309,443 @@ function MediaPipeRecognition() {
         </div>
       )}
       
-      <div className="recognition-container">
-        {/* Camera feed and overlay canvas */}
-        <div className="camera-container">
-          <video
-            ref={videoRef}
-            className="input-video"
-            width="640"
-            height="480"
-            playsInline
-          ></video>
-          <canvas
-            ref={canvasRef}
-            className="output-canvas"
-            width="640"
-            height="480"
-          ></canvas>
-          
-          {/* Feature toggle buttons at the top - always visible */}
-          <div className="camera-top-controls">
-            <button
-              className={`feature-toggle-button ${faceEnabled ? 'active' : ''}`}
-              onClick={toggleFaceDetection}
-              disabled={loading || initializing}
-            >
-              Face Detection
-            </button>
-            <button
-              className={`feature-toggle-button ${poseEnabled ? 'active' : ''}`}
-              onClick={togglePoseDetection}
-              disabled={loading || initializing}
-            >
-              Pose Detection
-            </button>
-            <button
-              className={`feature-toggle-button ${gestureEnabled ? 'active' : ''}`}
-              onClick={toggleGestureRecognition}
-              disabled={loading || initializing}
-            >
-              Gesture Recognition
-            </button>
-          </div>
-          
-          {!cameraRunning && (
-            <div className="camera-overlay">
-              <button 
-                onClick={startCamera}
-                className="start-button"
-                disabled={initializing}
-              >
-                {initializing ? "Initializing MediaPipe..." : "Start Camera"}
-              </button>
+      <div className="recognition-wrapper">
+        <div className="recognition-main-container">
+          <div className="recognition-container">
+            {/* Camera feed and overlay canvas */}
+            <div className="camera-container">
+              <video
+                ref={videoRef}
+                className="input-video"
+                width="640"
+                height="480"
+                playsInline
+              ></video>
+              <canvas
+                ref={canvasRef}
+                className="output-canvas"
+                width="640"
+                height="480"
+              ></canvas>
+              
+              {/* Feature toggle buttons at the top - always visible */}
+              <div className="camera-top-controls">
+                <button
+                  className={`feature-toggle-button ${faceEnabled ? 'active' : ''}`}
+                  onClick={toggleFaceDetection}
+                  disabled={loading || initializing}
+                >
+                  Face Detection
+                </button>
+                <button
+                  className={`feature-toggle-button ${poseEnabled ? 'active' : ''}`}
+                  onClick={togglePoseDetection}
+                  disabled={loading || initializing}
+                >
+                  Pose Detection
+                </button>
+                <button
+                  className={`feature-toggle-button ${gestureEnabled ? 'active' : ''}`}
+                  onClick={toggleGestureRecognition}
+                  disabled={loading || initializing}
+                >
+                  Gesture Recognition
+                </button>
+              </div>
+              
+              {!cameraRunning && (
+                <div className="camera-overlay" onClick={(e) => e.currentTarget === e.target && startCamera()}>
+                  <button 
+                    onClick={startCamera}
+                    className="start-button"
+                    disabled={initializing}
+                  >
+                    {initializing ? "Initializing MediaPipe..." : "Start Camera"}
+                  </button>
+                </div>
+              )}
+              
+              {fps > 0 && (
+                <div className="fps-counter">
+                  FPS: {fps}
+                </div>
+              )}
+              
+              {cameraRunning && (
+                <div className="camera-controls">
+                  <button 
+                    onClick={stopCamera}
+                    className="stop-button"
+                  >
+                    Stop Camera
+                  </button>
+                </div>
+              )}
+              
+              {(loading || initializing) && (
+                <div className="loading-indicator">
+                  <div className="spinner"></div>
+                  <p>
+                    {initializing 
+                      ? "Initializing MediaPipe... This may take a moment" 
+                      : "Loading models... This may take a moment"}
+                  </p>
+                  <p className="loading-tip">
+                    (If loading takes too long, please check your internet connection and try refreshing the page)
+                  </p>
+                </div>
+              )}
+              
+              {/* Recognition status display */}
+              <div className="recognition-status">
+                <div className="status-item">
+                  <span>Face: </span>
+                  <span className={`status-badge ${modelLoadingStatus.face === 'Ready' ? 'ready' : modelLoadingStatus.face === 'Error' ? 'error' : ''}`}>
+                    {modelLoadingStatus.face}
+                  </span>
+                </div>
+                <div className="status-item">
+                  <span>Pose: </span>
+                  <span className={`status-badge ${modelLoadingStatus.pose === 'Ready' ? 'ready' : modelLoadingStatus.pose === 'Error' ? 'error' : ''}`}>
+                    {modelLoadingStatus.pose}
+                  </span>
+                </div>
+                <div className="status-item">
+                  <span>Gesture: </span>
+                  <span className={`status-badge ${modelLoadingStatus.gesture === 'Ready' ? 'ready' : modelLoadingStatus.gesture === 'Error' ? 'error' : ''}`}>
+                    {modelLoadingStatus.gesture}
+                  </span>
+                </div>
+              </div>
             </div>
-          )}
-          
-          {fps > 0 && (
-            <div className="fps-counter">
-              FPS: {fps}
-            </div>
-          )}
-          
-          {cameraRunning && (
-            <div className="camera-controls">
-              <button 
-                onClick={stopCamera}
-                className="stop-button"
-              >
-                Stop Camera
-              </button>
-            </div>
-          )}
-          
-          {(loading || initializing) && (
-            <div className="loading-indicator">
-              <div className="spinner"></div>
-              <p>
-                {initializing 
-                  ? "Initializing MediaPipe... This may take a moment" 
-                  : "Loading models... This may take a moment"}
-              </p>
-              <p className="loading-tip">
-                (If loading takes too long, please check your internet connection and try refreshing the page)
-              </p>
-            </div>
-          )}
-          
-          {/* Recognition status display */}
-          <div className="recognition-status">
-            <div className="status-item">
-              <span>Face: </span>
-              <span className={`status-badge ${modelLoadingStatus.face === 'Ready' ? 'ready' : modelLoadingStatus.face === 'Error' ? 'error' : ''}`}>
-                {modelLoadingStatus.face}
-              </span>
-            </div>
-            <div className="status-item">
-              <span>Pose: </span>
-              <span className={`status-badge ${modelLoadingStatus.pose === 'Ready' ? 'ready' : modelLoadingStatus.pose === 'Error' ? 'error' : ''}`}>
-                {modelLoadingStatus.pose}
-              </span>
-            </div>
-            <div className="status-item">
-              <span>Gesture: </span>
-              <span className={`status-badge ${modelLoadingStatus.gesture === 'Ready' ? 'ready' : modelLoadingStatus.gesture === 'Error' ? 'error' : ''}`}>
-                {modelLoadingStatus.gesture}
-              </span>
+            
+            {/* Logs section at the bottom */}
+            <div className="logs-section">
+              {/* Detection logs first */}
+              <div className="detection-logs">
+                <div className={`log-panel ${faceEnabled ? 'active' : ''}`}>
+                  <h3>Face Detection Log</h3>
+                  <div 
+                    className="log-content face-blendshapes-log"
+                    dangerouslySetInnerHTML={{ __html: faceLog }}
+                  ></div>
+                </div>
+                
+                <div className={`log-panel ${poseEnabled ? 'active' : ''}`}>
+                  <h3>Pose Detection Log</h3>
+                  <div 
+                    className="log-content pose-metrics-log"
+                    dangerouslySetInnerHTML={{ __html: poseLog }}
+                  ></div>
+                </div>
+                
+                <div className={`log-panel ${gestureEnabled ? 'active' : ''}`}>
+                  <h3>Gesture Recognition Log</h3>
+                  <div 
+                    className="log-content gesture-metrics-log"
+                    dangerouslySetInnerHTML={{ __html: gestureLog }}
+                  ></div>
+                </div>
+              </div>
+              
+              {/* Data saving status button - moved below detection logs */}
+              <div className="data-save-toggle">
+                <button 
+                  className="data-save-toggle-button"
+                  onClick={toggleDataSaveStatus}
+                >
+                  {showDataSaveStatus ? "Hide Data Saving Status" : "Show Data Saving Status"}
+                </button>
+              </div>
+              
+              {/* Add data saving status indicator (collapsed by default) */}
+              {showDataSaveStatus && (
+                <div className="save-status-panel">
+                  <h3>Data Saving Status</h3>
+                  <div className="save-status-content">
+                    <div className={`save-status-item ${faceEnabled ? 'active' : ''}`}>
+                      <span className="save-status-type">Face:</span>
+                      <span className={`save-status-badge ${dataSaveStatus.face.saving ? 'saving' : 
+                        dataSaveStatus.face.error ? 'error' : 
+                        dataSaveStatus.face.lastSaved ? 'saved' : ''}`}>
+                        {dataSaveStatus.face.saving ? 'Saving...' : 
+                         dataSaveStatus.face.error ? 'Error' : 
+                         dataSaveStatus.face.lastSaved ? 'Saved' : 'Not saved'}
+                      </span>
+                      {dataSaveStatus.face.lastSaved && 
+                        <span className="save-status-time">
+                          Last: {new Date(dataSaveStatus.face.lastSaved).toLocaleTimeString()}
+                        </span>
+                      }
+                    </div>
+                    
+                    <div className={`save-status-item ${poseEnabled ? 'active' : ''}`}>
+                      <span className="save-status-type">Pose:</span>
+                      <span className={`save-status-badge ${dataSaveStatus.pose.saving ? 'saving' : 
+                        dataSaveStatus.pose.error ? 'error' : 
+                        dataSaveStatus.pose.lastSaved ? 'saved' : ''}`}>
+                        {dataSaveStatus.pose.saving ? 'Saving...' : 
+                         dataSaveStatus.pose.error ? 'Error' : 
+                         dataSaveStatus.pose.lastSaved ? 'Saved' : 'Not saved'}
+                      </span>
+                      {dataSaveStatus.pose.lastSaved && 
+                        <span className="save-status-time">
+                          Last: {new Date(dataSaveStatus.pose.lastSaved).toLocaleTimeString()}
+                        </span>
+                      }
+                    </div>
+                    
+                    <div className={`save-status-item ${gestureEnabled ? 'active' : ''}`}>
+                      <span className="save-status-type">Gesture:</span>
+                      <span className={`save-status-badge ${dataSaveStatus.gesture.saving ? 'saving' : 
+                        dataSaveStatus.gesture.error ? 'error' : 
+                        dataSaveStatus.gesture.lastSaved ? 'saved' : ''}`}>
+                        {dataSaveStatus.gesture.saving ? 'Saving...' : 
+                         dataSaveStatus.gesture.error ? 'Error' : 
+                         dataSaveStatus.gesture.lastSaved ? 'Saved' : 'Not saved'}
+                      </span>
+                      {dataSaveStatus.gesture.lastSaved && 
+                        <span className="save-status-time">
+                          Last: {new Date(dataSaveStatus.gesture.lastSaved).toLocaleTimeString()}
+                        </span>
+                      }
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Debug logs panel */}
+              <div className="debug-section">
+                <button 
+                  className="debug-toggle"
+                  onClick={toggleDebugPanel}
+                >
+                  {showDebugPanel ? "Hide Debug Logs" : "Show Debug Logs"}
+                </button>
+                
+                {showDebugPanel && (
+                  <div className="debug-panel">
+                    <h3>Initialization Logs</h3>
+                    <div className="debug-logs">
+                      {debugLogs.length === 0 ? (
+                        <p>No logs recorded yet</p>
+                      ) : (
+                        <ul>
+                          {debugLogs.map((log, index) => (
+                            <li key={index}>{log}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Activity Insights panel toggle button */}
+              <div className="activity-insights-section">
+                <button 
+                  className="activity-insights-toggle"
+                  onClick={toggleActivityInsights}
+                >
+                  {showActivityInsights ? "Hide Activity Insights" : "Show Activity Insights"}
+                </button>
+                
+                {showActivityInsights && (
+                  <div className="activity-insights-panel">
+                    <h3>AI Activity Insights</h3>
+                    <div className="activity-insights-content">
+                      {activityInsights.length === 0 ? (
+                        <p className="no-insights">No insights available yet. Please wait a moment...</p>
+                      ) : (
+                        <ul className="insights-list">
+                          {activityInsights.map((insight, index) => {
+                            // Format the timestamp
+                            const timestamp = new Date(insight.timestamp).toLocaleTimeString();
+                            return (
+                              <li key={index} className="insight-item">
+                                <div className="insight-time">{timestamp}</div>
+                                <div className="insight-text">{insight.text}</div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
         
-        {/* Logs section at the bottom */}
-        <div className="logs-section">
-          {/* Detection logs first */}
-          <div className="detection-logs">
-            <div className={`log-panel ${faceEnabled ? 'active' : ''}`}>
-              <h3>Face Detection Log</h3>
-              <div 
-                className="log-content face-blendshapes-log"
-                dangerouslySetInnerHTML={{ __html: faceLog }}
-              ></div>
+        {/* New right panel for Detection Results */}
+        <div className="detection-results-panel">
+          <h2>Detection Results</h2>
+          
+          <div className="results-summary">
+            <div className="total-count">
+              <span className="count-number">{detectedItems.total}</span>
+              <span className="count-label">Items Detected</span>
             </div>
             
-            <div className={`log-panel ${poseEnabled ? 'active' : ''}`}>
-              <h3>Pose Detection Log</h3>
-              <div 
-                className="log-content pose-metrics-log"
-                dangerouslySetInnerHTML={{ __html: poseLog }}
-              ></div>
-            </div>
-            
-            <div className={`log-panel ${gestureEnabled ? 'active' : ''}`}>
-              <h3>Gesture Recognition Log</h3>
-              <div 
-                className="log-content gesture-metrics-log"
-                dangerouslySetInnerHTML={{ __html: gestureLog }}
-              ></div>
-            </div>
+            <ul className="class-distribution">
+              <li className={`class-item face ${faceEnabled ? 'active' : ''}`}>
+                <div className="class-color-indicator"></div>
+                <span className="class-name">Face</span>
+                <span className="class-count">{detectedItems.face}</span>
+              </li>
+              <li className={`class-item pose ${poseEnabled ? 'active' : ''}`}>
+                <div className="class-color-indicator"></div>
+                <span className="class-name">Pose</span>
+                <span className="class-count">{detectedItems.pose}</span>
+              </li>
+              <li className={`class-item gesture ${gestureEnabled ? 'active' : ''}`}>
+                <div className="class-color-indicator"></div>
+                <span className="class-name">Gesture</span>
+                <span className="class-count">{detectedItems.gesture}</span>
+              </li>
+            </ul>
           </div>
           
-          {/* Data saving status button - moved below detection logs */}
-          <div className="data-save-toggle">
-            <button 
-              className="data-save-toggle-button"
-              onClick={toggleDataSaveStatus}
-            >
-              {showDataSaveStatus ? "Hide Data Saving Status" : "Show Data Saving Status"}
-            </button>
+          <div className="detection-table">
+            <h3>All Detections</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item Type</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detectedItems.total > 0 ? (
+                  <>
+                    {detectedItems.face > 0 && (
+                      <tr className="face">
+                        <td>
+                          <div className="class-info">
+                            <div className="class-color-dot"></div>
+                            <span>Face</span>
+                          </div>
+                        </td>
+                        <td>{((detectionStatsRef.current.face.success / Math.max(1, detectionStatsRef.current.face.count)) * 100).toFixed(1)}%</td>
+                      </tr>
+                    )}
+                    {detectedItems.pose > 0 && (
+                      <tr className="pose">
+                        <td>
+                          <div className="class-info">
+                            <div className="class-color-dot"></div>
+                            <span>Pose</span>
+                          </div>
+                        </td>
+                        <td>{((detectionStatsRef.current.pose.success / Math.max(1, detectionStatsRef.current.pose.count)) * 100).toFixed(1)}%</td>
+                      </tr>
+                    )}
+                    {detectedItems.gesture > 0 && (
+                      <tr className="gesture">
+                        <td>
+                          <div className="class-info">
+                            <div className="class-color-dot"></div>
+                            <span>Gesture</span>
+                          </div>
+                        </td>
+                        <td>{((detectionStatsRef.current.gesture.success / Math.max(1, detectionStatsRef.current.gesture.count)) * 100).toFixed(1)}%</td>
+                      </tr>
+                    )}
+                  </>
+                ) : (
+                  <tr>
+                    <td colSpan="2" className="no-detections">
+                      No items detected yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
           
-          {/* Add data saving status indicator (collapsed by default) */}
-          {showDataSaveStatus && (
-            <div className="save-status-panel">
-              <h3>Data Saving Status</h3>
-              <div className="save-status-content">
-                <div className={`save-status-item ${faceEnabled ? 'active' : ''}`}>
-                  <span className="save-status-type">Face:</span>
-                  <span className={`save-status-badge ${dataSaveStatus.face.saving ? 'saving' : 
-                    dataSaveStatus.face.error ? 'error' : 
-                    dataSaveStatus.face.lastSaved ? 'saved' : ''}`}>
-                    {dataSaveStatus.face.saving ? 'Saving...' : 
-                     dataSaveStatus.face.error ? 'Error' : 
-                     dataSaveStatus.face.lastSaved ? 'Saved' : 'Not saved'}
-                  </span>
-                  {dataSaveStatus.face.lastSaved && 
-                    <span className="save-status-time">
-                      Last: {new Date(dataSaveStatus.face.lastSaved).toLocaleTimeString()}
-                    </span>
-                  }
-                </div>
-                
-                <div className={`save-status-item ${poseEnabled ? 'active' : ''}`}>
-                  <span className="save-status-type">Pose:</span>
-                  <span className={`save-status-badge ${dataSaveStatus.pose.saving ? 'saving' : 
-                    dataSaveStatus.pose.error ? 'error' : 
-                    dataSaveStatus.pose.lastSaved ? 'saved' : ''}`}>
-                    {dataSaveStatus.pose.saving ? 'Saving...' : 
-                     dataSaveStatus.pose.error ? 'Error' : 
-                     dataSaveStatus.pose.lastSaved ? 'Saved' : 'Not saved'}
-                  </span>
-                  {dataSaveStatus.pose.lastSaved && 
-                    <span className="save-status-time">
-                      Last: {new Date(dataSaveStatus.pose.lastSaved).toLocaleTimeString()}
-                    </span>
-                  }
-                </div>
-                
-                <div className={`save-status-item ${gestureEnabled ? 'active' : ''}`}>
-                  <span className="save-status-type">Gesture:</span>
-                  <span className={`save-status-badge ${dataSaveStatus.gesture.saving ? 'saving' : 
-                    dataSaveStatus.gesture.error ? 'error' : 
-                    dataSaveStatus.gesture.lastSaved ? 'saved' : ''}`}>
-                    {dataSaveStatus.gesture.saving ? 'Saving...' : 
-                     dataSaveStatus.gesture.error ? 'Error' : 
-                     dataSaveStatus.gesture.lastSaved ? 'Saved' : 'Not saved'}
-                  </span>
-                  {dataSaveStatus.gesture.lastSaved && 
-                    <span className="save-status-time">
-                      Last: {new Date(dataSaveStatus.gesture.lastSaved).toLocaleTimeString()}
-                    </span>
-                  }
-                </div>
+          <div className="detection-stats">
+            <h3>Detection Statistics</h3>
+            <div className="stats-container">
+              <div className="stat-item">
+                <span className="stat-label">Face Detection Rate:</span>
+                <span className="stat-value">{faceEnabled ? `${((detectionStatsRef.current.face.success / Math.max(1, detectionStatsRef.current.face.count)) * 100).toFixed(1)}%` : 'Disabled'}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Pose Detection Rate:</span>
+                <span className="stat-value">{poseEnabled ? `${((detectionStatsRef.current.pose.success / Math.max(1, detectionStatsRef.current.pose.count)) * 100).toFixed(1)}%` : 'Disabled'}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Gesture Detection Rate:</span>
+                <span className="stat-value">{gestureEnabled ? `${((detectionStatsRef.current.gesture.success / Math.max(1, detectionStatsRef.current.gesture.count)) * 100).toFixed(1)}%` : 'Disabled'}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Current FPS:</span>
+                <span className="stat-value">{fps}</span>
               </div>
             </div>
-          )}
-          
-          {/* Debug logs panel */}
-          <div className="debug-section">
-            <button 
-              className="debug-toggle"
-              onClick={toggleDebugPanel}
-            >
-              {showDebugPanel ? "Hide Debug Logs" : "Show Debug Logs"}
-            </button>
-            
-            {showDebugPanel && (
-              <div className="debug-panel">
-                <h3>Initialization Logs</h3>
-                <div className="debug-logs">
-                  {debugLogs.length === 0 ? (
-                    <p>No logs recorded yet</p>
-                  ) : (
-                    <ul>
-                      {debugLogs.map((log, index) => (
-                        <li key={index}>{log}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
           
-          {/* Activity Insights panel toggle button */}
-          <div className="activity-insights-section">
-            <button 
-              className="activity-insights-toggle"
-              onClick={toggleActivityInsights}
-            >
-              {showActivityInsights ? "Hide Activity Insights" : "Show Activity Insights"}
-            </button>
-            
-            {showActivityInsights && (
-              <div className="activity-insights-panel">
-                <h3>AI Activity Insights</h3>
-                <div className="activity-insights-content">
-                  {activityInsights.length === 0 ? (
-                    <p className="no-insights">No insights available yet. Please wait a moment...</p>
-                  ) : (
-                    <ul className="insights-list">
-                      {activityInsights.map((insight, index) => {
-                        // Format the timestamp
-                        const timestamp = new Date(insight.timestamp).toLocaleTimeString();
-                        return (
-                          <li key={index} className="insight-item">
-                            <div className="insight-time">{timestamp}</div>
-                            <div className="insight-text">{insight.text}</div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* Settings button at the bottom */}
-          <div className="recognition-settings">
-            <button className="settings-button">
-              <span>⚙️</span> Recognition Settings
-            </button>
-          </div>
+          {/* Chat bot button */}
+          <button 
+            className="chat-bot-button"
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent event bubbling
+              setShowChat(!showChat);
+            }}
+          >
+            <span className="chat-icon">💬</span> Ask AI Assistant
+          </button>
         </div>
       </div>
+      
+      {/* Chat popup - moved outside of recognition-wrapper with improved event handling */}
+      {showChat && (
+        <div 
+          className="chat-popup" 
+          id="ai-assistant-chat-popup"
+          onClick={(e) => e.stopPropagation()} // Prevent clicks from passing through
+        >
+          <div className="chat-header">
+            <h3>AI Teacher Assistant</h3>
+            <button 
+              className="close-chat" 
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                setShowChat(false);
+              }}
+            >×</button>
+          </div>
+          <div className="chat-messages">
+            {chatMessages.map((msg, index) => (
+              <div key={index} className={`chat-message ${msg.sender}`}>
+                <div className="message-bubble">
+                  {msg.isTyping ? (
+                    <div className="typing-indicator">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  ) : (
+                    msg.text
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="chat-input">
+            <input 
+              type="text"
+              placeholder="Ask me anything, sweetheart..."
+              value={userMessage}
+              onChange={(e) => setUserMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              id="chat-input-field"
+            />
+            <button onClick={handleSendMessage}>Send</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

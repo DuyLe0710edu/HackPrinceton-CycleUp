@@ -17,6 +17,7 @@ import json
 import google.generativeai as genai
 from datetime import datetime, timedelta
 from db_connector import get_client
+import livekit_service
 
 # Add trash_detection to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -668,12 +669,13 @@ def call_gemini_api(prompt):
     try:
         # First, list available models to find the correct one
         available_models = genai.list_models()
-        print("Available Gemini models:")
+        #print("Available Gemini models:")
         gemini_models = []
         
         for model in available_models:
             model_name = model.name
-            print(f"- {model_name}")
+            # Comment out the model listing to reduce clutter
+            #print(f"- {model_name}")
             if "gemini" in model_name.lower():
                 gemini_models.append(model_name)
         
@@ -707,7 +709,7 @@ def call_gemini_api(prompt):
             # Fallback to the common stable model
             model_name = "models/gemini-1.5-pro"
         
-        print(f"Using model: {model_name}")
+        #print(f"Using model: {model_name}")
         
         # Use the selected model
         model = genai.GenerativeModel(model_name)
@@ -735,6 +737,304 @@ def call_gemini_api(prompt):
     except Exception as e:
         print(f"Error calling Gemini API: {e}")
         return f"Could not analyze activity: {str(e)}"
+
+@app.route('/api/chat/kindergarten-teacher', methods=['POST'])
+def kindergarten_teacher_chat():
+    """
+    Provide child-friendly responses using Gemini AI with a kindergarten teacher persona.
+    This endpoint creates nurturing, educational responses focused on environmental
+    awareness and emotional support.
+    
+    Expected JSON input:
+    {
+        "message": "User's message text",
+        "activity_data": "Recent activity insight (optional)",
+        "emotion_data": "Detected emotion (optional)"
+    }
+    """
+    try:
+        if not gemini_configured:
+            return jsonify({
+                "success": False, 
+                "error": "Gemini API not configured, please set GEMINI_API_KEY"
+            }), 500
+        
+        # Extract data from request
+        data = request.json
+        if not data or 'message' not in data:
+            return jsonify({
+                "success": False,
+                "error": "Missing required field: message"
+            }), 400
+            
+        user_message = data['message']
+        activity_data = data.get('activity_data', 'No recent activity data available.')
+        emotion_data = data.get('emotion_data', 'Unknown')
+        
+        # Create prompt for kindergarten teacher persona
+        prompt = create_kindergarten_teacher_prompt(user_message, activity_data, emotion_data)
+        
+        # Call Gemini API with the teacher persona prompt
+        response = call_kindergarten_teacher_gemini(prompt)
+        
+        return jsonify({
+            "success": True,
+            "response": response
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in kindergarten teacher chat: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+def create_kindergarten_teacher_prompt(user_message, activity_data, emotion_data):
+    """
+    Create a prompt for Gemini that instructs it to respond as a nurturing
+    kindergarten teacher who is emotionally supportive and educates about
+    environmental awareness.
+    
+    Args:
+        user_message (str): The message from the user (child)
+        activity_data (str): Description of the user's recent activity
+        emotion_data (str): Detected emotional state
+        
+    Returns:
+        str: Formatted prompt for Gemini
+    """
+    prompt = """# KINDERGARTEN TEACHER AI ASSISTANT
+
+## YOUR ROLE
+You are a warm, nurturing kindergarten teacher speaking to a young child. Your response should be emotionally supportive, educational, and appropriate for young children. You should convey a sense of care and encouragement while gently teaching about environmental consciousness and trash classification.
+
+## YOUR PERSONALITY
+- Use endearing terms like "sweetheart," "little one," or "dear"
+- Speak with gentle enthusiasm and warmth
+- Be encouraging and positive
+- Express genuine care for the child's feelings
+- Use simple language a young child would understand
+- Be patient and supportive
+- Include occasional gentle questions to engage the child
+
+## EDUCATIONAL FOCUS
+- Environmental awareness
+- Proper trash classification (plastic, paper, metal, glass)
+- Recycling importance
+- Caring for our planet
+- Simple sustainability concepts
+
+## INFORMATION ABOUT THE CHILD
+
+The child's recent activity: {activity}
+
+The child's current emotional state appears to be: {emotion}
+
+## THE CHILD'S MESSAGE
+"{message}"
+
+## YOUR RESPONSE GUIDELINES
+1. First, acknowledge the child's emotions if relevant
+2. Address their question or comment directly
+3. Include a gentle educational element about environmental awareness when appropriate
+4. End with encouragement or a supportive comment
+5. Keep your response brief (2-4 short sentences) and use simple language
+6. Be warm and nurturing throughout
+
+Please respond as this kindergarten teacher would, with warmth, care, and gentle environmental education.
+"""
+    
+    # Replace placeholders with actual data
+    prompt = prompt.replace("{message}", user_message)
+    prompt = prompt.replace("{activity}", activity_data)
+    prompt = prompt.replace("{emotion}", emotion_data)
+    
+    return prompt
+
+def call_kindergarten_teacher_gemini(prompt):
+    """
+    Call Gemini API with the kindergarten teacher prompt
+    
+    Args:
+        prompt (str): The prompt with kindergarten teacher instructions
+        
+    Returns:
+        str: Gemini's child-friendly response
+    """
+    try:
+        # Set a second API key if provided (allowing different APIs for different purposes)
+        second_api_key = os.getenv("GEMINI_API_KEY_SECONDARY")
+        api_key = second_api_key if second_api_key else os.getenv("GEMINI_API_KEY")
+        
+        if not api_key:
+            raise ValueError("No Gemini API key available")
+        
+        # Configure genai with the API key for this request
+        genai.configure(api_key=api_key)
+        
+        # Use the preferred model for this assistant
+        model_name = "models/gemini-1.5-pro" # Default to a stable model for consistent responses
+        
+        # Use the best available model if you prefer
+        available_models = genai.list_models()
+        gemini_models = [model.name for model in available_models if "gemini" in model.name.lower()]
+        
+        if gemini_models:
+            # Preferred models for the kindergarten teacher (prioritizing stable models)
+            preferred_models = [
+                "models/gemini-1.5-pro",
+                "models/gemini-1.5-flash",
+                "models/gemini-pro",
+                "models/gemini-pro-vision"
+            ]
+            
+            for preferred in preferred_models:
+                matching_models = [m for m in gemini_models if preferred in m]
+                if matching_models:
+                    model_name = matching_models[0]
+                    break
+        
+        #print(f"Using model for kindergarten teacher: {model_name}")
+        
+        # Initialize the model
+        model = genai.GenerativeModel(model_name)
+        
+        # Call the API with specific settings for the kindergarten teacher
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.8,  # Slightly higher temperature for more warmth and personality
+                "top_p": 0.95,
+                "top_k": 40,
+                "max_output_tokens": 200,  # Keep responses relatively concise for a child
+            },
+            safety_settings=[
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"}
+            ]
+        )
+        
+        # Extract and return the text
+        return response.text.strip()
+    
+    except Exception as e:
+        print(f"Error calling Gemini API for kindergarten teacher response: {e}")
+        return "I'm sorry, sweetheart. I'm having a little trouble with my thinking right now. Can we try talking again in a moment?"
+
+# LiveKit token endpoint
+@app.route('/api/livekit/token', methods=['GET', 'OPTIONS'])
+def get_livekit_token():
+    # Handle OPTIONS request for CORS preflight
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
+        return response
+        
+    try:
+        print("LiveKit token endpoint called")
+        user_id = request.args.get('user_id', 'user-' + str(int(time.time())))
+        room_name = request.args.get('room', 'ai-assistant-room')
+        
+        print(f"Generating tokens for user_id: {user_id}, room: {room_name}")
+        
+        # Get tokens for both AI and user
+        token_data = livekit_service.get_ai_and_user_tokens(room_name, user_id)
+        
+        print(f"Generated tokens successfully: {token_data.keys()}")
+        
+        response = jsonify(token_data)
+        # Add CORS headers explicitly
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+    except Exception as e:
+        print(f"Error generating LiveKit tokens: {str(e)}")
+        error_response = jsonify({"error": str(e)})
+        error_response.headers.add('Access-Control-Allow-Origin', '*')
+        return error_response, 500
+
+# Voice chat endpoint
+@app.route('/api/voice-chat', methods=['POST'])
+def voice_chat():
+    data = request.json
+    
+    if not data or 'message' not in data:
+        return jsonify({'error': 'Missing message in request'}), 400
+    
+    user_message = data.get('message', '')
+    emotion = data.get('emotion', None)
+    activity = data.get('activity', None)
+    
+    try:
+        # Generate AI response
+        context = ""
+        if emotion:
+            context += f"The user appears to be feeling {emotion}. "
+        if activity:
+            context += f"The user has been {activity}. "
+        
+        prompt = f"""You are a friendly kindergarten teacher AI assistant talking to a child.
+        {context}
+        The child says: "{user_message}"
+        
+        Respond in a warm, nurturing voice that's appropriate for young children.
+        Keep your response brief and easy to understand, focusing on environmental education.
+        """
+        
+        # Set a second API key if provided (allowing different APIs for different purposes)
+        second_api_key = os.getenv("GEMINI_API_KEY_SECONDARY")
+        api_key = second_api_key if second_api_key else os.getenv("GEMINI_API_KEY")
+        
+        if not api_key:
+            raise ValueError("No Gemini API key available")
+        
+        # Configure genai with the API key for this request
+        genai.configure(api_key=api_key)
+        
+        # Use reliable model
+        gemini = genai.GenerativeModel('gemini-1.5-pro')
+        
+        response = gemini.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.8,
+                "top_p": 0.95,
+                "top_k": 40,
+                "max_output_tokens": 200,
+            },
+            safety_settings=[
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"}
+            ]
+        )
+        
+        ai_response = response.text
+        
+        return jsonify({
+            'response': ai_response,
+            'success': True
+        })
+        
+    except Exception as e:
+        print(f"Error generating voice response: {str(e)}")
+        return jsonify({
+            'response': "I'm sorry, sweetheart. I'm having trouble understanding right now. Can you try saying that again?",
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Add a simple test endpoint
+@app.route('/api/test', methods=['GET'])
+def test_endpoint():
+    """Simple test endpoint that returns JSON"""
+    response = jsonify({"status": "ok", "message": "Backend API is working properly"})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
 if __name__ == '__main__':
     print("Starting Trash Detection Backend on port 8000...")

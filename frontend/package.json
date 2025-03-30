@@ -2,17 +2,22 @@
   "name": "trash-detection-frontend",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:8000",
   "dependencies": {
+    "@livekit/components-react": "^2.9.0",
     "@mediapipe/drawing_utils": "^0.3.1675466124",
     "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
     "axios": "^1.4.0",
     "chart.js": "^4.4.8",
+    "livekit-client": "^2.9.9",
     "lodash": "^4.17.21",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.4.1",
     "react-scripts": "5.0.1",
+    "react-speech-recognition": "^4.0.0",
+    "regenerator-runtime": "^0.14.1",
     "socket.io-client": "^4.8.1"
   },
   "scripts": {

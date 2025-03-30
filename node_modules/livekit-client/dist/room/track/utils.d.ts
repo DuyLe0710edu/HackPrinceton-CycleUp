@@ -1,0 +1,14 @@
+import { AudioCaptureOptions, CreateLocalTracksOptions, VideoCaptureOptions } from './options';
+import { AudioTrack } from './types';
+export declare function mergeDefaultOptions(options?: CreateLocalTracksOptions, audioDefaults?: AudioCaptureOptions, videoDefaults?: VideoCaptureOptions): CreateLocalTracksOptions;
+export declare function constraintsForOptions(options: CreateLocalTracksOptions): MediaStreamConstraints;
+/**
+ * This function detects silence on a given [[Track]] instance.
+ * Returns true if the track seems to be entirely silent.
+ */
+export declare function detectSilence(track: AudioTrack, timeOffset?: number): Promise<boolean>;
+/**
+ * @internal
+ */
+export declare function getNewAudioContext(): AudioContext | void;
+//# sourceMappingURL=utils.d.ts.map

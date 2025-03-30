@@ -4,7 +4,7 @@
   box-shadow: var(--box-shadow);
   padding: 24px;
   width: 100%;
-  height: calc(100vh - 150px);
+  height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
 }

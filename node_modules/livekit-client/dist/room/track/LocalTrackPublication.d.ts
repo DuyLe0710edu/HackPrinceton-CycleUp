@@ -1,0 +1,38 @@
+import { TrackInfo } from '../../proto/livekit_models';
+import LocalAudioTrack from './LocalAudioTrack';
+import LocalTrack from './LocalTrack';
+import LocalVideoTrack from './LocalVideoTrack';
+import { TrackPublishOptions } from './options';
+import { Track } from './Track';
+import { TrackPublication } from './TrackPublication';
+export default class LocalTrackPublication extends TrackPublication {
+    track?: LocalTrack;
+    options?: TrackPublishOptions;
+    get isUpstreamPaused(): boolean | undefined;
+    constructor(kind: Track.Kind, ti: TrackInfo, track?: LocalTrack);
+    setTrack(track?: Track): void;
+    get isMuted(): boolean;
+    get audioTrack(): LocalAudioTrack | undefined;
+    get videoTrack(): LocalVideoTrack | undefined;
+    /**
+     * Mute the track associated with this publication
+     */
+    mute(): Promise<LocalTrack | undefined>;
+    /**
+     * Unmute track associated with this publication
+     */
+    unmute(): Promise<LocalTrack | undefined>;
+    /**
+     * Pauses the media stream track associated with this publication from being sent to the server
+     * and signals "muted" event to other participants
+     * Useful if you want to pause the stream without pausing the local media stream track
+     */
+    pauseUpstream(): Promise<void>;
+    /**
+     * Resumes sending the media stream track associated with this publication to the server after a call to [[pauseUpstream()]]
+     * and signals "unmuted" event to other participants (unless the track is explicitly muted)
+     */
+    resumeUpstream(): Promise<void>;
+    handleTrackEnded: () => void;
+}
+//# sourceMappingURL=LocalTrackPublication.d.ts.map

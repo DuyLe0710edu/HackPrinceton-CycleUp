@@ -2,40 +2,75 @@
   background-color: var(--color-white);
   border-radius: 8px;
   box-shadow: var(--box-shadow);
-  padding: 24px;
+  padding: 0;
   width: 100%;
-  height: calc(100vh - 150px);
+  height: calc(100vh - 100px);
   display: flex;
   flex-direction: column;
+  contain: layout style;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .mediapipe-recognition h1 {
-  margin-top: 0;
+  margin: 0;
+  padding: 20px 24px;
   color: var(--color-text-primary);
-  margin-bottom: 16px;
   font-size: 20px;
   font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.recognition-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 0;
+  width: 100%;
+  height: calc(100vh - 150px);
+  overflow: hidden;
+  position: relative;
+}
+
+.recognition-main-container {
+  overflow-y: auto;
+  position: relative;
+  contain: layout;
+  padding: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .recognition-container {
+  position: relative;
+  contain: layout;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 30px;
-  flex: 1;
   overflow-y: auto;
-  padding-bottom: 60px;
+  height: 100%;
+  padding: 20px;
 }
 
 .camera-container {
   position: relative;
-  border-radius: 8px;
   overflow: hidden;
   background-color: #000;
-  box-shadow: var(--box-shadow);
   width: 100%;
-  padding-bottom: 77%; /* Square 1:1 aspect ratio */
+  max-width: 960px;
+  margin: 0 auto;
   height: 0;
+  padding-bottom: 75%;
   flex-shrink: 0;
+  transform: translateZ(0);
+  will-change: transform;
+  contain: size layout;
+  border-radius: 8px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .input-video {
@@ -45,6 +80,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: translateZ(0);
+  will-change: transform;
+  z-index: 11;
 }
 
 .output-canvas {
@@ -53,6 +91,10 @@
   top: 0;
   width: 100%;
   height: 100%;
+  transform: translateZ(0);
+  will-change: transform;
+  z-index: 12;
+  pointer-events: none;
 }
 
 .camera-overlay {
@@ -65,25 +107,50 @@
   justify-content: center;
   align-items: center;
   background-color: rgba(0, 0, 0, 0.7);
+  z-index: 15;
+  pointer-events: auto;
+}
+
+/* Make sure the camera overlay doesn't block critical buttons */
+.camera-overlay ~ .camera-controls,
+.camera-overlay ~ .camera-top-controls,
+.camera-overlay ~ .recognition-status,
+.camera-controls .stop-button {
+  z-index: 100 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .start-button, .stop-button {
-  padding: 12px 24px;
+  padding: 10px 24px;
   border: none;
   border-radius: 4px;
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
+  z-index: 25;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .start-button {
-  background-color: var(--color-accent);
+  background-color: #6366F1;
   color: white;
+  padding: 12px 28px;
+  font-size: 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .start-button:hover {
   background-color: #4F46E5;
+  transform: translateY(-1px);
 }
 
 .start-button:disabled {
@@ -94,10 +161,26 @@
 .stop-button {
   background-color: #EF4444;
   color: white;
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 50;
+  display: block !important;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
 }
 
 .stop-button:hover {
   background-color: #DC2626;
+  transform: translateY(-1px);
 }
 
 /* Recognition controls at the top of the camera */
@@ -107,29 +190,45 @@
   width: 100%;
   display: flex;
   justify-content: center;
-  gap: 12px;
-  z-index: 5;
+  gap: 16px;
+  z-index: 50;
+  pointer-events: auto !important;
 }
 
 .feature-toggle-button {
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.3);
   color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 12px;
-  font-size: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 15px;
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 50;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  min-width: 150px;
+  text-align: center;
+  backdrop-filter: blur(2px);
 }
 
 .feature-toggle-button:hover {
-  background-color: rgba(30, 30, 30, 0.7);
+  background-color: rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.feature-toggle-button:active {
+  background-color: rgba(0, 0, 0, 0.5);
+  transform: translateY(1px);
 }
 
 .feature-toggle-button.active {
-  background-color: rgba(66, 135, 245, 0.7);
-  border-color: rgba(255, 255, 255, 0.5);
+  background-color: rgba(66, 135, 245, 0.45);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
 }
 
 .feature-toggle-button:disabled {
@@ -140,16 +239,16 @@
 /* Recognition status display at the bottom of the camera */
 .recognition-status {
   position: absolute;
-  bottom: 60px;
+  bottom: 16px;
   left: 16px;
-  background-color: rgba(0, 0, 0, 0.6);
-  border-radius: 4px;
-  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   color: white;
-  font-size: 13px;
+  font-size: 14px;
   z-index: 5;
 }
 
@@ -190,6 +289,11 @@
   position: absolute;
   bottom: 16px;
   right: 16px;
+  z-index: 50;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 .loading-indicator {
@@ -257,11 +361,10 @@
   display: flex;
   flex-direction: column;
   height: auto;
-  max-height: none;
   width: 100%;
   overflow-y: visible;
-  margin-top: 50px;
-  padding-bottom: 80px;
+  padding: 20px;
+  border-top: 1px solid var(--color-border);
 }
 
 .detection-logs {
@@ -793,4 +896,402 @@
   .activity-insights-panel {
     max-height: 200px;
   }
+}
+
+/* Special styles for detection types */
+.class-item.face .class-color-indicator { background-color: #4285f4; }
+.class-item.pose .class-color-indicator { background-color: #34A853; }
+.class-item.gesture .class-color-indicator { background-color: #FBBC05; }
+
+tr.face .class-color-dot { background-color: #4285f4; }
+tr.pose .class-color-dot { background-color: #34A853; }
+tr.gesture .class-color-dot { background-color: #FBBC05; }
+
+/* Detection statistics section */
+.detection-stats {
+  margin-top: 24px;
+  background-color: var(--color-background);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.stats-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.stat-item:last-child {
+  border-bottom: none;
+}
+
+.stat-label {
+  color: var(--color-text-secondary);
+}
+
+.stat-value {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Responsive design adjustments */
+@media (max-width: 1024px) {
+  .recognition-wrapper {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .camera-container {
+    height: 50vh;
+  }
+
+  .detection-results-panel {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/* Add fixed height to results containers */
+.results-summary {
+  margin-bottom: 24px;
+  min-height: auto;
+}
+
+.total-count {
+  text-align: center;
+  margin-bottom: 24px;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: var(--color-background);
+}
+
+.detection-table {
+  min-height: 200px;
+  position: relative;
+}
+
+.detection-results-panel {
+  width: 320px;
+  background-color: var(--color-white);
+  padding: 24px;
+  overflow-y: auto;
+  height: 100%;
+  flex-shrink: 0;
+  min-width: 320px;
+  max-width: 320px;
+  position: relative;
+  contain: layout;
+  box-shadow: none;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+}
+
+.detection-results-panel h2 {
+  margin-top: 0;
+  color: var(--color-text-primary);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  font-size: 20px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detection-results-panel h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* Add detection settings button at bottom like in screenshot */
+.detection-settings-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  margin-top: 20px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.detection-settings-button:hover {
+  background-color: var(--color-hover);
+}
+
+/* Chat bot button styling */
+.chat-bot-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px;
+  background-color: #6366F1;
+  background-image: linear-gradient(to right, #6366F1, #8B5CF6);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  margin: 24px 0;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.chat-bot-button:hover {
+  background-color: #4F46E5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.chat-icon {
+  font-size: 20px;
+}
+
+/* Chat popup styling */
+.chat-popup {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 450px;
+  height: 500px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 2000;
+  border: 1px solid var(--color-border);
+  transition: all 0.3s ease;
+  pointer-events: auto;
+  contain: layout style paint;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background-color: #6366F1;
+  background-image: linear-gradient(to right, #6366F1, #8B5CF6);
+  color: white;
+}
+
+.chat-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.close-chat {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.close-chat:hover {
+  transform: scale(1.1);
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: #F9FAFB;
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%239C92AC' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+.chat-message {
+  display: flex;
+  margin-bottom: 8px;
+  max-width: 100%;
+}
+
+.chat-message.user {
+  justify-content: flex-end;
+}
+
+.chat-message.bot {
+  justify-content: flex-start;
+}
+
+.message-bubble {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.5;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  position: relative;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-message.user .message-bubble {
+  background-color: #6366F1;
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-message.bot .message-bubble {
+  background-color: white;
+  color: #333;
+  border-bottom-left-radius: 4px;
+  border-left: 4px solid #8B5CF6;
+}
+
+.chat-message.bot .message-bubble::before {
+  content: '👩‍🏫';
+  position: absolute;
+  left: -30px;
+  top: 0;
+  font-size: 20px;
+}
+
+/* Handle typing indicator */
+.chat-message.bot .message-bubble:has(.typing-indicator) {
+  background-color: #EEF2FF;
+  padding: 8px 12px;
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.typing-indicator span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #8B5CF6;
+  border-radius: 50%;
+  opacity: 0.6;
+  animation: typing 1.5s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.chat-input {
+  display: flex;
+  padding: 16px;
+  border-top: 1px solid var(--color-border);
+  background-color: white;
+  pointer-events: auto;
+  position: relative;
+  z-index: 2001;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #E5E7EB;
+  border-radius: 24px;
+  font-size: 15px;
+  outline: none;
+  position: relative;
+  z-index: 2002;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat-input input:focus {
+  border-color: #8B5CF6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.chat-input button {
+  background-color: #6366F1;
+  background-image: linear-gradient(to right, #6366F1, #8B5CF6);
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 12px 20px;
+  margin-left: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  position: relative;
+  z-index: 2002;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat-input button:hover {
+  background-color: #4F46E5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
+}
+
+/* Responsive adjustments for the chat popup */
+@media (max-width: 768px) {
+  .chat-popup {
+    width: 90%;
+    left: 5%;
+    right: 5%;
+    bottom: 10px;
+    height: 60vh;
+  }
+}
+
+/* Add a special class to the root element when chat is open */
+.mediapipe-recognition.chat-open .camera-container,
+.mediapipe-recognition.chat-open .camera-overlay,
+.mediapipe-recognition.chat-open .camera-top-controls,
+.mediapipe-recognition.chat-open .start-button,
+.mediapipe-recognition.chat-open .recognition-status {
+  z-index: auto;
+}
+
+/* Add specific styles to ensure the Start Camera button remains clickable */
+.mediapipe-recognition .start-button {
+  position: relative;
+  z-index: 20;
+  pointer-events: auto !important;
+}
+
+.mediapipe-recognition .camera-overlay {
+  position: absolute;
+  z-index: 14;
+  pointer-events: auto !important;
 } 

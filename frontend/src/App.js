@@ -10,6 +10,7 @@ import Footer from './components/Footer';
 import ProfileModal from './components/ProfileModal';
 import MediaPipeRecognition from './components/MediaPipeRecognition';
 import detectionStore from './services/detectionStore';
+import LiveKitIntegrator from './components/LiveKitIntegrator';
 
 // Wrapped component that can use Router hooks
 const RoutedAppLayout = ({ children }) => {
@@ -119,7 +120,13 @@ function App() {
         <Route path="/" element={<RoutedAppLayout />} />
         <Route path="/recognition" element={
           <RoutedAppLayout>
-            <MediaPipeRecognition />
+            <LiveKitIntegrator
+              onMessageReceived={(message) => {
+                console.log("Received message from LiveKit:", message);
+              }}
+            >
+              <MediaPipeRecognition />
+            </LiveKitIntegrator>
           </RoutedAppLayout>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
