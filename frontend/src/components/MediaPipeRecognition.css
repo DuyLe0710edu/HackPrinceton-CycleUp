@@ -910,25 +910,35 @@ tr.gesture .class-color-dot { background-color: #FBBC05; }
 /* Detection statistics section */
 .detection-stats {
   margin-top: 24px;
-  background-color: var(--color-background);
+  background-color: white !important;
   border-radius: 8px;
-  padding: 16px;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: none;
+  overflow: hidden;
+}
+
+/* Hide the title to save space */
+.detection-stats h3 {
+  display: none;
 }
 
 .stats-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-height: 100px;
 }
 
 .stat-item {
   display: flex;
-  justify-content: space-between;
+  flex-direction: row;
   align-items: center;
-  font-size: 14px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--color-border);
+  justify-content: space-between;
+  font-size: 15px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  background-color:green !important;
 }
 
 .stat-item:last-child {
@@ -936,12 +946,122 @@ tr.gesture .class-color-dot { background-color: #FBBC05; }
 }
 
 .stat-label {
-  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #374151 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  background-color: transparent !important;
 }
 
-.stat-value {
+.stat-label::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #bbb;
+}
+
+.stat-label.face::before {
+  background-color: #4285f4; /* Blue for face */
+}
+
+.stat-label.pose::before {
+  background-color: #34A853; /* Green for pose */
+}
+
+.stat-label.gesture::before {
+  background-color: #FBBC05; /* Yellow for gesture */
+}
+
+.stat-label.fps::before {
+  background-color: #EA4335; /* Red for FPS */
+}
+
+/* NEW SEPARATE CLASSES WITH GREEN STYLING */
+/* Green circle for standard values */
+.green-stats-circle {
+  font-weight: 500;
+  font-size: 16px;
+  color: white !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #34A853 !important;
+  border-radius: 50% !important;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  box-shadow: none !important;
+}
+
+/* Green circle for disabled state */
+.green-stats-circle-disabled {
+  font-weight: 500;
+  font-size: 16px;
+  color: white !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-style: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #34A853 !important;
+  border-radius: 50% !important;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  box-shadow: none !important;
+}
+
+/* Green circle for FPS counter */
+.green-stats-circle-fps {
+  font-weight: 500;
+  font-size: 16px;
+  color: white !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #34A853 !important;
+  border-radius: 50% !important;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  box-shadow: none !important;
+}
+
+/* Clear out redundant selectors */
+.detection-stats .stat-item .stat-value,
+.detection-stats .stat-item .stat-value.disabled,
+.detection-stats .stat-item .fps-value,
+.detection-stats .stat-value,
+.detection-stats .stat-value.disabled,
+.detection-stats .fps-value {
+  /* Empty to clear previous styles */
+}
+
+.stat-item .stat-value,
+.stat-value,
+.stat-value.disabled,
+.fps-value {
+  /* Empty to clear previous styles */
+}
+
+/* All Detection Stats title at the bottom */
+.detection-stats::after {
+  content: "All Detections";
+  display: block;
   font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: 16px;
+  color: #111827;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 5px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 /* Responsive design adjustments */

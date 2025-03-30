@@ -1036,6 +1036,27 @@ def test_endpoint():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
+@app.route('/api/speech/test', methods=['GET', 'POST'])
+def speech_test():
+    """Simple endpoint to test speech synthesis"""
+    try:
+        # Get test message from query parameter or use default
+        test_message = request.args.get('message', 'Hello! This is a test of the speech synthesis system. If you can hear this message, speech synthesis is working correctly.')
+        
+        # Return message for speech synthesis
+        response = jsonify({
+            "status": "ok", 
+            "message": test_message,
+            "instructions": "This message should be synthesized as speech in the browser."
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+    except Exception as e:
+        print(f"Error in speech test endpoint: {str(e)}")
+        error_response = jsonify({"error": str(e)})
+        error_response.headers.add('Access-Control-Allow-Origin', '*')
+        return error_response, 500
+
 if __name__ == '__main__':
     print("Starting Trash Detection Backend on port 8000...")
     socketio.run(app, host='0.0.0.0', port=8000, debug=True)

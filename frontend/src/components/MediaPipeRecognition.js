@@ -1668,20 +1668,20 @@ function MediaPipeRecognition() {
             <h3>Detection Statistics</h3>
             <div className="stats-container">
               <div className="stat-item">
-                <span className="stat-label">Face Detection Rate:</span>
-                <span className="stat-value">{faceEnabled ? `${((detectionStatsRef.current.face.success / Math.max(1, detectionStatsRef.current.face.count)) * 100).toFixed(1)}%` : 'Disabled'}</span>
+                <span className="stat-label face">Face</span>
+                <span className={`green-stats-circle ${!faceEnabled ? 'green-stats-circle-disabled' : ''}`}>{faceEnabled ? detectedItems.face : '0'}</span>
               </div>
               <div className="stat-item">
-                <span className="stat-label">Pose Detection Rate:</span>
-                <span className="stat-value">{poseEnabled ? `${((detectionStatsRef.current.pose.success / Math.max(1, detectionStatsRef.current.pose.count)) * 100).toFixed(1)}%` : 'Disabled'}</span>
+                <span className="stat-label pose">Pose</span>
+                <span className={`green-stats-circle ${!poseEnabled ? 'green-stats-circle-disabled' : ''}`}>{poseEnabled ? detectedItems.pose : '0'}</span>
               </div>
               <div className="stat-item">
-                <span className="stat-label">Gesture Detection Rate:</span>
-                <span className="stat-value">{gestureEnabled ? `${((detectionStatsRef.current.gesture.success / Math.max(1, detectionStatsRef.current.gesture.count)) * 100).toFixed(1)}%` : 'Disabled'}</span>
+                <span className="stat-label gesture">Gesture</span>
+                <span className={`green-stats-circle ${!gestureEnabled ? 'green-stats-circle-disabled' : ''}`}>{gestureEnabled ? detectedItems.gesture : '0'}</span>
               </div>
               <div className="stat-item">
-                <span className="stat-label">Current FPS:</span>
-                <span className="stat-value">{fps}</span>
+                <span className="stat-label fps">FPS</span>
+                <span className="green-stats-circle-fps">{fps}</span>
               </div>
             </div>
           </div>

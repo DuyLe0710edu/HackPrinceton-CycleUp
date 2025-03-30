@@ -11,6 +11,7 @@ import ProfileModal from './components/ProfileModal';
 import MediaPipeRecognition from './components/MediaPipeRecognition';
 import detectionStore from './services/detectionStore';
 import LiveKitIntegrator from './components/LiveKitIntegrator';
+import LandingPage from './components/LandingPage';
 
 // Wrapped component that can use Router hooks
 const RoutedAppLayout = ({ children }) => {
@@ -27,7 +28,7 @@ const RoutedAppLayout = ({ children }) => {
   useEffect(() => {
     if (location.pathname === '/recognition') {
       setCurrentView('recognition');
-    } else if (location.pathname === '/') {
+    } else if (location.pathname === '/dashboard') {
       setCurrentView('detection');
     }
   }, [location.pathname]);
@@ -55,10 +56,10 @@ const RoutedAppLayout = ({ children }) => {
     
     // Handle navigation between routes
     if (view === 'detection') {
-      navigate('/');
+      navigate('/dashboard');
     } else if (view === 'analytics') {
       // Keep on same route but change view
-      navigate('/');
+      navigate('/dashboard');
     } else if (view === 'recognition') {
       navigate('/recognition');
     }
@@ -117,7 +118,8 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<RoutedAppLayout />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/dashboard" element={<RoutedAppLayout />} />
         <Route path="/recognition" element={
           <RoutedAppLayout>
             <LiveKitIntegrator

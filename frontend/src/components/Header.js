@@ -17,8 +17,13 @@ function Header({ toggleSidebar, userProfile }) {
         </div>
       </div>
       <div className="header-right">
-        <a href="/recognition" className="cycle-up-button">
-          CycleUp
+        <a href="/recognition" className="eco-button recognition-button">
+          <span className="eco-button-icon">🎓</span>
+          Learn with AI
+        </a>
+        <a href="/dashboard" className="eco-button community-button">
+          <span className="eco-button-icon">🌱</span>
+          Explore
         </a>
         <div className="user-button">
           {userProfile ? (
