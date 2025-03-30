@@ -12,6 +12,11 @@ const KindergartenAssistant = ({ onSendMessage }) => {
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
   
+  // Add state for text-to-speech
+  const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechError, setSpeechError] = useState(null);
+  
   // Local state for camera data from service
   const [detectionStats, setDetectionStats] = useState({
     face: 0,
@@ -26,6 +31,60 @@ const KindergartenAssistant = ({ onSendMessage }) => {
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
   
   const messagesEndRef = useRef(null);
+  const speechSynthesisRef = useRef(null);
+  const speechInitializedRef = useRef(false);
+  const componentMountedRef = useRef(true);
+  
+  // Initialize speech synthesis with proper error handling
+  useEffect(() => {
+    const initializeSpeechSynthesis = () => {
+      try {
+        // Check if speech synthesis is available in this browser
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          speechSynthesisRef.current = window.speechSynthesis;
+          
+          // Force load voices - needed in some browsers
+          speechSynthesisRef.current.getVoices();
+          
+          // Listen for voices changed event (important for Chrome)
+          window.speechSynthesis.onvoiceschanged = () => {
+            if (componentMountedRef.current && !speechInitializedRef.current) {
+              speechInitializedRef.current = true;
+              console.log("Speech synthesis initialized with", speechSynthesisRef.current.getVoices().length, "voices");
+            }
+          };
+          
+          // If voices are already available, mark as initialized
+          if (speechSynthesisRef.current.getVoices().length > 0) {
+            speechInitializedRef.current = true;
+            console.log("Speech synthesis initialized immediately with", speechSynthesisRef.current.getVoices().length, "voices");
+          }
+          
+          setSpeechError(null);
+        } else {
+          console.warn("Speech synthesis not supported in this browser");
+          setSpeechError("Speech synthesis not supported in your browser");
+        }
+      } catch (error) {
+        console.error("Error initializing speech synthesis:", error);
+        setSpeechError(`Error initializing speech: ${error.message}`);
+      }
+    };
+    
+    initializeSpeechSynthesis();
+    
+    // Clean up on unmount
+    return () => {
+      componentMountedRef.current = false;
+      if (speechSynthesisRef.current) {
+        try {
+          speechSynthesisRef.current.cancel();
+        } catch (e) {
+          console.error("Error canceling speech on unmount:", e);
+        }
+      }
+    };
+  }, []);
   
   // Subscribe to the mediaStateService
   useEffect(() => {
@@ -72,7 +131,183 @@ const KindergartenAssistant = ({ onSendMessage }) => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messageHistory]);
+    
+    // Speak out the latest assistant message if speech is enabled
+    if (isSpeechEnabled && messageHistory.length > 0) {
+      const lastMessage = messageHistory[messageHistory.length - 1];
+      if (lastMessage.sender === 'assistant' && !lastMessage.typing) {
+        speakText(lastMessage.text);
+      }
+    }
+  }, [messageHistory, isSpeechEnabled]);
+  
+  // Function to speak text using Web Speech API with robust error handling
+  const speakText = (text) => {
+    // Reset any previous errors
+    setSpeechError(null);
+    
+    // Check if speech synthesis is available and initialized
+    if (!speechSynthesisRef.current || !speechInitializedRef.current) {
+      console.warn("Speech synthesis not initialized yet or not available");
+      setSpeechError("Speech not available. Please check your browser settings.");
+      return;
+    }
+    
+    try {
+      // Try to cancel any ongoing speech
+      try {
+        speechSynthesisRef.current.cancel();
+      } catch (e) {
+        console.warn("Error canceling previous speech:", e);
+      }
+      
+      // Create a new utterance with proper error handling
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Set properties for a charming kindergarten teacher voice
+      utterance.rate = 0.9; // Slightly slower than normal
+      utterance.pitch = 1.2; // Slightly higher pitch
+      utterance.volume = 1.0; // Full volume
+      
+      // Get available voices safely
+      let voices = [];
+      try {
+        voices = speechSynthesisRef.current.getVoices();
+      } catch (e) {
+        console.warn("Error getting voices:", e);
+      }
+      
+      // Try to find a friendly, warm female voice
+      const preferredVoices = voices.filter(voice => 
+        (voice.name.includes('female') || 
+         voice.name.includes('girl') || 
+         voice.name.includes('Karen') || 
+         voice.name.includes('Samantha') || 
+         voice.name.includes('Victoria')) && 
+        voice.lang.includes('en')
+      );
+      
+      if (preferredVoices.length > 0) {
+        utterance.voice = preferredVoices[0];
+      } else if (voices.length > 0) {
+        // Fallback to any English voice if no female voice is found
+        const englishVoices = voices.filter(voice => voice.lang.includes('en'));
+        if (englishVoices.length > 0) {
+          utterance.voice = englishVoices[0];
+        }
+      }
+      
+      // Add event listeners with error handling
+      utterance.onstart = () => {
+        if (componentMountedRef.current) {
+          setIsSpeaking(true);
+        }
+      };
+      
+      utterance.onend = () => {
+        if (componentMountedRef.current) {
+          setIsSpeaking(false);
+        }
+      };
+      
+      utterance.onerror = (event) => {
+        console.error("Speech synthesis error:", event);
+        if (componentMountedRef.current) {
+          setIsSpeaking(false);
+          setSpeechError(`Speech error: ${event.error || 'Unknown error'}`);
+        }
+      };
+      
+      // Start speaking with timeout safeguard
+      speechSynthesisRef.current.speak(utterance);
+      
+      // Set a timeout to check if speaking actually started
+      setTimeout(() => {
+        if (componentMountedRef.current && !speechSynthesisRef.current.speaking && isSpeechEnabled) {
+          setSpeechError("Speech failed to start. Try refreshing the page.");
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.error("Error during speech synthesis:", error);
+      setSpeechError(`Speech error: ${error.message}`);
+      setIsSpeaking(false);
+    }
+  };
+  
+  // Toggle speech on/off
+  const toggleSpeech = () => {
+    // Reset any previous errors
+    setSpeechError(null);
+    
+    const newState = !isSpeechEnabled;
+    setIsSpeechEnabled(newState);
+    
+    // If turning off, cancel any ongoing speech
+    if (!newState && speechSynthesisRef.current) {
+      try {
+        speechSynthesisRef.current.cancel();
+        setIsSpeaking(false);
+      } catch (e) {
+        console.warn("Error canceling speech:", e);
+      }
+    }
+    
+    // If turning on, try to speak the last assistant message
+    if (newState) {
+      if (!speechSynthesisRef.current || !speechInitializedRef.current) {
+        setSpeechError("Speech not available in your browser");
+        return;
+      }
+      
+      if (messageHistory.length > 0) {
+        const lastAssistantMessage = [...messageHistory]
+          .reverse()
+          .find(msg => msg.sender === 'assistant' && !msg.typing);
+          
+        if (lastAssistantMessage) {
+          speakText(lastAssistantMessage.text);
+        }
+      }
+    }
+  };
+  
+  // Stop speaking
+  const stopSpeaking = () => {
+    if (speechSynthesisRef.current) {
+      try {
+        speechSynthesisRef.current.cancel();
+        setIsSpeaking(false);
+      } catch (e) {
+        console.error("Error stopping speech:", e);
+        setSpeechError(`Error stopping speech: ${e.message}`);
+      }
+    }
+  };
+  
+  // Retry speech if there was an error
+  const retrySpeech = () => {
+    setSpeechError(null);
+    
+    // Reinitialize the speech synthesis
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      speechSynthesisRef.current = window.speechSynthesis;
+      speechInitializedRef.current = true;
+      
+      // Try speaking the last message again
+      if (messageHistory.length > 0) {
+        const lastAssistantMessage = [...messageHistory]
+          .reverse()
+          .find(msg => msg.sender === 'assistant' && !msg.typing);
+          
+        if (lastAssistantMessage && isSpeechEnabled) {
+          speakText(lastAssistantMessage.text);
+        }
+      }
+    } else {
+      setSpeechError("Speech synthesis not supported in your browser");
+    }
+  };
 
   const handleSendMessage = () => {
     if (inputMessage.trim() === '') return;
@@ -113,6 +348,15 @@ const KindergartenAssistant = ({ onSendMessage }) => {
     })
     .then(response => response.json())
     .then(data => {
+      // Stop speaking previous response
+      if (isSpeechEnabled && speechSynthesisRef.current) {
+        try {
+          speechSynthesisRef.current.cancel();
+        } catch (e) {
+          console.warn("Error canceling previous speech:", e);
+        }
+      }
+      
       // Remove the typing indicator
       setMessageHistory(prev => prev.filter(msg => !msg.typing));
       
@@ -122,6 +366,8 @@ const KindergartenAssistant = ({ onSendMessage }) => {
           sender: 'assistant', 
           text: data.response
         }]);
+        
+        // Speech will be handled by the useEffect that watches messageHistory
       } else {
         // Add fallback response in case of error
         setMessageHistory(prev => [...prev, { 
@@ -132,6 +378,15 @@ const KindergartenAssistant = ({ onSendMessage }) => {
       }
     })
     .catch(error => {
+      // Stop speaking previous response
+      if (isSpeechEnabled && speechSynthesisRef.current) {
+        try {
+          speechSynthesisRef.current.cancel();
+        } catch (e) {
+          console.warn("Error canceling previous speech:", e);
+        }
+      }
+      
       // Remove the typing indicator
       setMessageHistory(prev => prev.filter(msg => !msg.typing));
       
@@ -231,6 +486,56 @@ const KindergartenAssistant = ({ onSendMessage }) => {
       
       {/* Chat Area */}
       <div className="assistant-chat">
+        {/* Add voice control buttons */}
+        <div className="speech-controls">
+          {speechError && (
+            <div className="speech-error">
+              <span className="error-message">{speechError}</span>
+              <button 
+                className="retry-button"
+                onClick={retrySpeech}
+                title="Retry speech"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          
+          <button 
+            className={`speech-toggle-button ${isSpeechEnabled ? 'active' : ''}`}
+            onClick={toggleSpeech}
+            title={isSpeechEnabled ? "Turn voice off" : "Turn voice on"}
+            disabled={!speechInitializedRef.current}
+          >
+            {isSpeechEnabled ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3C10.9 3 10 3.9 10 5V13C10 14.1 10.9 15 12 15C13.1 15 14 14.1 14 13V5C14 3.9 13.1 3 12 3Z" fill="currentColor"/>
+                <path d="M17 11C17 14.53 14.39 17.44 11 17.93V21H13V23H9V21H11V17.93C7.61 17.44 5 14.53 5 11H7C7 13.76 9.24 16 12 16C14.76 16 17 13.76 17 11H19H17Z" fill="currentColor"/>
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3C10.9 3 10 3.9 10 5V13C10 14.1 10.9 15 12 15C13.1 15 14 14.1 14 13V5C14 3.9 13.1 3 12 3Z" fill="currentColor" fillOpacity="0.5"/>
+                <path d="M17 11C17 14.53 14.39 17.44 11 17.93V21H13V23H9V21H11V17.93C7.61 17.44 5 14.53 5 11H7C7 13.76 9.24 16 12 16C14.76 16 17 13.76 17 11H19H17Z" fill="currentColor" fillOpacity="0.5"/>
+                <path d="M3 4L21 22" stroke="red" strokeWidth="2" strokeLinecap="round" style={{ display: isSpeaking ? 'none' : 'block' }}/>
+              </svg>
+            )}
+            <span>{isSpeechEnabled ? "Voice On" : "Voice Off"}</span>
+          </button>
+          
+          {isSpeechEnabled && isSpeaking && (
+            <button 
+              className="stop-speech-button"
+              onClick={stopSpeaking}
+              title="Stop speaking"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/>
+              </svg>
+              <span>Stop</span>
+            </button>
+          )}
+        </div>
+
         <div className="chat-messages-container">
           {messageHistory.length === 0 ? (
             <div className="welcome-message">

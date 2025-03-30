@@ -366,4 +366,90 @@
   .chat-message {
     max-width: 90%;
   }
+}
+
+/* Add styles for speech controls */
+.speech-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 10px 20px;
+  gap: 10px;
+  background-color: #f9f9f9;
+  border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+.speech-toggle-button, 
+.stop-speech-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: none;
+  background-color: #f0f8f0;
+  color: #388e3c;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.speech-toggle-button:hover,
+.stop-speech-button:hover {
+  background-color: #e8f5e9;
+}
+
+.speech-toggle-button.active {
+  background-color: #4caf50;
+  color: white;
+}
+
+.speech-toggle-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.stop-speech-button {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.stop-speech-button:hover {
+  background-color: #ffcdd2;
+}
+
+/* Speech error styles */
+.speech-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background-color: #fff8e1;
+  border-radius: 20px;
+  border: 1px solid #ffe082;
+  margin-right: auto;
+  max-width: 300px;
+}
+
+.error-message {
+  font-size: 13px;
+  color: #ff8f00;
+  flex: 1;
+}
+
+.retry-button {
+  background-color: #ffa000;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.retry-button:hover {
+  background-color: #ff8f00;
 } 
