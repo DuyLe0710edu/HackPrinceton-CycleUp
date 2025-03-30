@@ -2,11 +2,12 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import './MediaPipeRecognition.css';
 import { throttle } from 'lodash';
 import { io } from 'socket.io-client';
+import mediaStateService from '../services/mediaStateService';
 
 // Import from the specific @mediapipe packages directly - this is the most reliable approach
 import { FilesetResolver } from '@mediapipe/tasks-vision';
 
-function MediaPipeRecognition() {
+function MediaPipeRecognition(props) {
   // Refs for the video and canvas elements
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -34,12 +35,12 @@ function MediaPipeRecognition() {
   const [gestureLog, setGestureLog] = useState('No gesture detection running');
   const [detailedGestureLog, setDetailedGestureLog] = useState([]);
   
-  // State for chat bot
-  const [showChat, setShowChat] = useState(false);
+  // State for chat bot - updated for sidebar
+  const [showChatSidebar, setShowChatSidebar] = useState(false);
   const [chatMessages, setChatMessages] = useState([
-    { sender: 'bot', text: 'Hello there, sweetheart! I\'m your charming teacher. I can help you learn about recycling and taking care of our beautiful planet. What would you like to talk about today?' }
+    { sender: 'assistant', text: 'Hello there! I\'m your Kindergarten Assistant. I can help analyze classroom activities and provide insights based on the camera feed. What would you like to know about the children?' }
   ]);
-  const [userMessage, setUserMessage] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // State to track errors
   const [error, setError] = useState(null);
@@ -108,6 +109,10 @@ function MediaPipeRecognition() {
   const [activityInsights, setActivityInsights] = useState([]);
   const [showActivityInsights, setShowActivityInsights] = useState(true);
   const activityTimerRef = useRef(null);
+  
+  // Add missing state declarations
+  const [userMessage, setUserMessage] = useState('');
+  const [showChat, setShowChat] = useState(false);
   
   // Add a throttled function to send recognition data to the backend
   // Only send data at most once every 2 seconds for each recognition type
@@ -1106,7 +1111,7 @@ function MediaPipeRecognition() {
         requestAnimationFrameIdRef.current = null;
       }
     };
-  }, [cameraRunning, faceEnabled, poseEnabled, gestureEnabled, updateDetectionStats]);
+  }, [cameraRunning, faceEnabled, poseEnabled, gestureEnabled]);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -1298,8 +1303,66 @@ function MediaPipeRecognition() {
     }
   };
 
+  // Update shared state when camera status changes
+  useEffect(() => {
+    // This was previously using the updateCameraStatus prop
+    // Now we'll just keep this effect for internal state management
+    // if (updateCameraStatus && typeof updateCameraStatus === 'function') {
+    //   updateCameraStatus(cameraRunning);
+    // }
+  }, [cameraRunning]);
+
+  // Update detection stats when they change
+  useEffect(() => {
+    // This was commenting out the prop version to avoid linter errors
+    // if (updateDetectionStats && typeof updateDetectionStats === 'function') {
+    //   updateDetectionStats(detectedItems);
+    // }
+  }, [detectedItems]);
+
+  // Update activity insights when they change
+  useEffect(() => {
+    // This was previously using the updateActivityInsights prop
+    // Now we'll just keep this effect for internal state management
+    // if (updateActivityInsights && typeof updateActivityInsights === 'function') {
+    //   updateActivityInsights(activityInsights);
+    // }
+  }, [activityInsights]);
+
+  // Use useEffect to update the shared state service
+  useEffect(() => {
+    // Update camera status whenever it changes
+    mediaStateService.updateCameraStatus(cameraRunning);
+  }, [cameraRunning]);
+
+  // Add this after your existing updateDetectionStats function
+  // This won't conflict with the existing function since it's inside useEffect
+  useEffect(() => {
+    if (detectionStatsRef.current) {
+      // Calculate total detections
+      const faceCount = detectionStatsRef.current.face.lastFrameDetected ? 1 : 0;
+      const poseCount = detectionStatsRef.current.pose.lastFrameDetected ? 1 : 0;
+      const gestureCount = detectionStatsRef.current.gesture.lastFrameDetected ? 1 : 0;
+      
+      // Share via the service
+      mediaStateService.updateDetectionStats({
+        face: faceCount,
+        pose: poseCount,
+        gesture: gestureCount,
+        fps: fps
+      });
+    }
+  }, [fps, detectedItems]);
+
+  // Add this after your existing insights-related code
+  useEffect(() => {
+    if (activityInsights.length > 0) {
+      mediaStateService.updateActivityInsights(activityInsights);
+    }
+  }, [activityInsights]);
+
   return (
-    <div className={`mediapipe-recognition ${showChat ? 'chat-open' : ''}`}>
+    <div className={`mediapipe-recognition ${showChatSidebar ? 'chat-open' : ''}`}>
       <h1>MediaPipe Recognition</h1>
       
       {error && (
@@ -1694,7 +1757,7 @@ function MediaPipeRecognition() {
               setShowChat(!showChat);
             }}
           >
-            <span className="chat-icon">💬</span> Ask AI Assistant
+            <span className="chat-icon">💬</span> Kindergarten Assistant
           </button>
         </div>
       </div>
@@ -1707,7 +1770,7 @@ function MediaPipeRecognition() {
           onClick={(e) => e.stopPropagation()} // Prevent clicks from passing through
         >
           <div className="chat-header">
-            <h3>AI Teacher Assistant</h3>
+            <h3>Kindergarten Assistant</h3>
             <button 
               className="close-chat" 
               onClick={(e) => {

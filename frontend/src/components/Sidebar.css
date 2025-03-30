@@ -148,6 +148,28 @@
   width: 100%;
 }
 
+.nav-svg-icon {
+  margin-right: 12px;
+  color: #4CAF50;
+  opacity: 0.8;
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover .nav-svg-icon {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.nav-item.active .nav-svg-icon {
+  opacity: 1;
+  transform: scale(1.1);
+  filter: drop-shadow(0 1px 2px rgba(76, 175, 80, 0.3));
+}
+
+.camera-svg-icon {
+  margin-right: 8px;
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;
