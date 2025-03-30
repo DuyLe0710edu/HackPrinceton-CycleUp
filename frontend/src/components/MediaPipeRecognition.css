@@ -20,9 +20,10 @@
 .recognition-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 30px;
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  padding-bottom: 60px;
 }
 
 .camera-container {
@@ -31,15 +32,19 @@
   overflow: hidden;
   background-color: #000;
   box-shadow: var(--box-shadow);
-  height: 85%;
   width: 100%;
+  padding-bottom: 77%; /* Square 1:1 aspect ratio */
+  height: 0;
+  flex-shrink: 0;
 }
 
 .input-video {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 .output-canvas {
@@ -251,17 +256,20 @@
 .logs-section {
   display: flex;
   flex-direction: column;
-  height: 15%;
+  height: auto;
+  max-height: none;
   width: 100%;
-  overflow: hidden;
+  overflow-y: visible;
+  margin-top: 50px;
+  padding-bottom: 80px;
 }
 
 .detection-logs {
-  flex: 1;
   display: flex;
   gap: 15px;
-  overflow-y: auto;
   padding: 10px 0;
+  flex-shrink: 0;
+  margin-bottom: 30px;
 }
 
 .log-panel {
@@ -400,9 +408,7 @@
 }
 
 .recognition-settings {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-start;
+  display: none;
 }
 
 .settings-button {
@@ -451,31 +457,52 @@
 
 /* Debug panel styles */
 .debug-section {
-  margin-top: 15px;
-  width: 100%;
+  margin-top: 40px;
+  text-align: center;
+  margin-bottom: 60px;
 }
 
 .debug-toggle {
-  background-color: #2c3e50;
-  color: white;
-  border: none;
-  padding: 8px 16px;
+  background-color: #F3F4F6;
+  border: 1px solid #D1D5DB;
   border-radius: 4px;
-  cursor: pointer;
+  padding: 8px 16px;
   font-size: 14px;
-  transition: background-color 0.3s;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .debug-toggle:hover {
-  background-color: #34495e;
+  background-color: #E5E7EB;
+}
+
+/* Data Saving Status toggle */
+.data-save-toggle {
+  margin-top: 40px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.data-save-toggle-button {
+  background-color: #F3F4F6;
+  border: 1px solid #D1D5DB;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.data-save-toggle-button:hover {
+  background-color: #E5E7EB;
 }
 
 .debug-panel {
-  margin-top: 10px;
-  background-color: #f8f9fa;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 10px;
+  margin-top: 12px;
+  background-color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  padding: 12px;
   max-height: 250px;
   overflow-y: auto;
 }
@@ -516,7 +543,7 @@
 
 /* Data saving status styles */
 .save-status-panel {
-  flex: 1;
+  flex-shrink: 0;
   background-color: var(--color-bg-light);
   border-radius: 8px;
   padding: 15px;
@@ -585,4 +612,185 @@
   color: #666;
   font-size: 13px;
   margin-left: auto;
+}
+
+/* Gesture metrics specific styling */
+.gesture-metrics-log {
+  white-space: pre;
+  line-height: 1.4;
+  font-family: monospace;
+  font-size: 0.85rem;
+  background-color: #f8f8f8;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.gesture-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gesture-hand-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.gesture-hand-label {
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #eaeaea;
+  padding-bottom: 4px;
+}
+
+.gesture-hand-divider {
+  height: 1px;
+  background-color: #ccc;
+  margin: 8px 0;
+}
+
+.gesture-item {
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 20px;
+  margin-bottom: 2px;
+}
+
+.gesture-name {
+  flex: 0 0 40%;
+  text-align: right;
+  padding-right: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #333;
+}
+
+.gesture-value {
+  flex: 0 0 70px;
+  text-align: left;
+  color: #333;
+  font-weight: 500;
+}
+
+.gesture-bar {
+  height: 16px;
+  background-color: #4285f4;
+  border-radius: 2px;
+  position: absolute;
+  left: calc(40% + 80px);
+  max-width: calc(60% - 90px);
+}
+
+/* Different colors for different gesture confidences */
+.gesture-bar.high {
+  background-color: #34A853; /* Google green - high confidence */
+}
+
+.gesture-bar.medium {
+  background-color: #4285f4; /* Google blue - medium confidence */
+}
+
+.gesture-bar.low {
+  background-color: #FBBC05; /* Google yellow - low confidence */
+}
+
+/* To ensure we don't have unwanted stylings from the previous CSS */
+.gesture-metrics-log::before {
+  content: none;
+}
+
+.gesture-metrics-log span.value-bar {
+  display: none;
+}
+
+/* Activity Insights section */
+.activity-insights-section {
+  margin-top: 30px;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.activity-insights-toggle {
+  background-color: #F3F4F6;
+  border: 1px solid #D1D5DB;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #5e48e8;
+  color: white;
+}
+
+.activity-insights-toggle:hover {
+  background-color: #4a36c7;
+}
+
+.activity-insights-panel {
+  margin-top: 12px;
+  background-color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.activity-insights-panel h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  color: #333;
+  border-bottom: 1px solid #E5E7EB;
+  padding-bottom: 8px;
+}
+
+.activity-insights-content {
+  font-size: 14px;
+}
+
+.no-insights {
+  color: #666;
+  font-style: italic;
+}
+
+.insights-list {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.insight-item {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.insight-item:last-child {
+  border-bottom: none;
+}
+
+.insight-time {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.insight-text {
+  color: #333;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .activity-insights-panel {
+    max-height: 200px;
+  }
 } 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import './App.css';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -11,13 +11,25 @@ import ProfileModal from './components/ProfileModal';
 import MediaPipeRecognition from './components/MediaPipeRecognition';
 import detectionStore from './services/detectionStore';
 
-// Main application layout component
-const AppLayout = ({ children }) => {
+// Wrapped component that can use Router hooks
+const RoutedAppLayout = ({ children }) => {
   const [detections, setDetections] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [currentView, setCurrentView] = useState('detection'); // 'detection' or 'analytics'
+  const [currentView, setCurrentView] = useState('detection'); // 'detection', 'analytics', or 'recognition'
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Update currentView based on current route
+  useEffect(() => {
+    if (location.pathname === '/recognition') {
+      setCurrentView('recognition');
+    } else if (location.pathname === '/') {
+      setCurrentView('detection');
+    }
+  }, [location.pathname]);
 
   // Load user profile from localStorage
   useEffect(() => {
@@ -39,6 +51,16 @@ const AppLayout = ({ children }) => {
   
   const navigateTo = (view) => {
     setCurrentView(view);
+    
+    // Handle navigation between routes
+    if (view === 'detection') {
+      navigate('/');
+    } else if (view === 'analytics') {
+      // Keep on same route but change view
+      navigate('/');
+    } else if (view === 'recognition') {
+      navigate('/recognition');
+    }
   };
   
   const openProfileModal = () => {
@@ -94,11 +116,11 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<AppLayout />} />
+        <Route path="/" element={<RoutedAppLayout />} />
         <Route path="/recognition" element={
-          <AppLayout>
+          <RoutedAppLayout>
             <MediaPipeRecognition />
-          </AppLayout>
+          </RoutedAppLayout>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

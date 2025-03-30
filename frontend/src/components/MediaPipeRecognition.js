@@ -32,6 +32,7 @@ function MediaPipeRecognition() {
   const [faceLog, setFaceLog] = useState('No face detection running');
   const [poseLog, setPoseLog] = useState('No pose detection running');
   const [gestureLog, setGestureLog] = useState('No gesture detection running');
+  const [detailedGestureLog, setDetailedGestureLog] = useState([]);
   
   // State to track errors
   const [error, setError] = useState(null);
@@ -72,6 +73,9 @@ function MediaPipeRecognition() {
   const [debugLogs, setDebugLogs] = useState([]);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   
+  // Add state for showing/hiding data saving status
+  const [showDataSaveStatus, setShowDataSaveStatus] = useState(false);
+  
   // Animation frame ID for proper cleanup
   const requestAnimationFrameIdRef = useRef(null);
   
@@ -84,6 +88,11 @@ function MediaPipeRecognition() {
   
   // Add URL config for backend
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+  
+  // Add new state variables near other state declarations
+  const [activityInsights, setActivityInsights] = useState([]);
+  const [showActivityInsights, setShowActivityInsights] = useState(true);
+  const activityTimerRef = useRef(null);
   
   // Add a throttled function to send recognition data to the backend
   // Only send data at most once every 2 seconds for each recognition type
@@ -180,6 +189,11 @@ function MediaPipeRecognition() {
   // Toggle debug panel
   const toggleDebugPanel = () => {
     setShowDebugPanel(!showDebugPanel);
+  };
+  
+  // Toggle data save status panel
+  const toggleDataSaveStatus = () => {
+    setShowDataSaveStatus(!showDataSaveStatus);
   };
   
   // Toggle face detection
@@ -932,30 +946,88 @@ function MediaPipeRecognition() {
             // Update gesture log with throttling
             const now = performance.now();
             if (now - lastGestureUpdateTimeRef.current > 200) {
-              if (gestureResults.gestures && 
-                  gestureResults.gestures.length > 0 && 
-                  gestureResults.gestures[0].length > 0) {
-                const gesture = gestureResults.gestures[0][0];
-                const hand = gestureResults.handedness && gestureResults.handedness[0] ? 
-                          gestureResults.handedness[0][0].displayName : 'Unknown';
+              if (gestureResults.gestures && gestureResults.gestures.length > 0) {
+                // Extract all detected gestures from all hands
+                const detectedGestures = [];
+                const allGestureData = [];
                 
-                // Add this: send gesture data to backend
+                // Process each hand's gestures
+                for (let i = 0; i < gestureResults.gestures.length; i++) {
+                  const handGestures = gestureResults.gestures[i];
+                  const handInfo = gestureResults.handedness && gestureResults.handedness[i] ? 
+                                 gestureResults.handedness[i][0].displayName : 'Unknown';
+                  
+                  // Get top gestures for this hand (typically sorted by confidence)
+                  if (handGestures && handGestures.length > 0) {
+                    // Take the top 3 gesture candidates for each hand
+                    const topGestures = handGestures.slice(0, 3);
+                    
+                    // Add to our collection with hand information
+                    detectedGestures.push({
+                      hand: handInfo,
+                      gestures: topGestures
+                    });
+                    
+                    // Get the top gesture for summary display
+                    const topGesture = topGestures[0];
+                    allGestureData.push(`${topGesture.categoryName} (${(topGesture.score * 100).toFixed(0)}%) - ${handInfo} hand`);
+                  }
+                }
+                
+                // Store detailed gesture data for display
+                setDetailedGestureLog(detectedGestures);
+                
+                // Create formatted HTML for the gesture log
+                if (detectedGestures.length > 0) {
+                  // Create HTML representation with visual bars for gestures
+                  const gestureHTML = detectedGestures.map(handData => {
+                    const hand = handData.hand;
+                    const gestureItems = handData.gestures.map(gesture => {
+                      // Calculate confidence bar width
+                      const barWidth = Math.max(1, Math.round(gesture.score * 100));
+                      
+                      // Create color based on confidence
+                      let barColor = '#4285f4'; // Default blue
+                      if (gesture.score > 0.8) barColor = '#34A853'; // High confidence: green
+                      else if (gesture.score > 0.5) barColor = '#4285f4'; // Medium confidence: blue
+                      else barColor = '#FBBC05'; // Low confidence: yellow
+                      
+                      return `<div class="gesture-item">
+                                <span class="gesture-name">${gesture.categoryName}</span>
+                                <span class="gesture-value">${gesture.score.toFixed(2)}</span>
+                                <div class="gesture-bar" style="width: ${barWidth}%; background-color: ${barColor};"></div>
+                              </div>`;
+                    }).join('');
+                    
+                    return `<div class="gesture-hand-container">
+                              <div class="gesture-hand-label">${hand} Hand:</div>
+                              ${gestureItems}
+                            </div>`;
+                  }).join('<div class="gesture-hand-divider"></div>');
+                  
+                  // Set the gesture log HTML
+                  setGestureLog(`<div class="gesture-container">${gestureHTML}</div>`);
+                } else {
+                  setGestureLog('No specific gestures detected');
+                }
+                
+                // Add this: send detailed gesture data to backend
                 const gestureData = {
                   timestamp: new Date().toISOString(),
+                  detectedGestures: detectedGestures, // More detailed structure with all gestures
                   gestures: gestureResults.gestures,
                   handedness: gestureResults.handedness,
                   landmarks: gestureResults.landmarks,
                   metrics: {
-                    detectionRate: detectionStatsRef.current.gesture.success / detectionStatsRef.current.gesture.count
+                    detectionRate: detectionStatsRef.current.gesture.success / detectionStatsRef.current.gesture.count,
+                    detectedGestureTypes: detectedGestures.map(g => g.gestures[0].categoryName).join(', ') // For easier querying
                   }
                 };
                 
                 sendToBackend('Gesture', gestureData);
-                
-                // Then update the log as before
-                setGestureLog(`Detected ${gesture.categoryName} (${(gesture.score * 100).toFixed(0)}%) - ${hand} hand`);
               } else {
                 setGestureLog('No gestures detected');
+                setDetailedGestureLog([]);
               }
               lastGestureUpdateTimeRef.current = now;
             }
@@ -964,6 +1036,7 @@ function MediaPipeRecognition() {
             const now = performance.now();
             if (now - lastGestureUpdateTimeRef.current > 200) {
               setGestureLog('No gestures detected');
+              setDetailedGestureLog([]);
               lastGestureUpdateTimeRef.current = now;
             }
           }
@@ -1042,6 +1115,67 @@ function MediaPipeRecognition() {
       if (videoRef.current && videoRef.current.srcObject) {
         const tracks = videoRef.current.srcObject.getTracks();
         tracks.forEach(track => track.stop());
+      }
+    };
+  }, []);
+  
+  // Add a function to fetch activity insights
+  const fetchActivityInsights = useCallback(async () => {
+    try {
+      const response = await fetch(`${backendUrl}/api/activity/analyze?time_window=15`);
+      const data = await response.json();
+      
+      if (data.success && data.activity) {
+        // Add new insight to the beginning of the array and keep only the last 10
+        setActivityInsights(prev => {
+          const newInsights = [
+            { text: data.activity, timestamp: data.timestamp || new Date().toISOString() },
+            ...prev
+          ];
+          // Keep only the 10 most recent insights
+          return newInsights.slice(0, 10);
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching activity insights:", error);
+    }
+  }, [backendUrl]);
+
+  // Add a toggle function for the activity insights panel
+  const toggleActivityInsights = () => {
+    setShowActivityInsights(!showActivityInsights);
+  };
+
+  // Set up a timer to fetch insights every 15 seconds when the camera is running
+  useEffect(() => {
+    if (cameraRunning && (faceEnabled || poseEnabled || gestureEnabled)) {
+      // Fetch insights immediately
+      fetchActivityInsights();
+      
+      // Set up interval to fetch every 15 seconds
+      activityTimerRef.current = setInterval(fetchActivityInsights, 15000);
+    } else {
+      // Clear the interval when camera is stopped
+      if (activityTimerRef.current) {
+        clearInterval(activityTimerRef.current);
+        activityTimerRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (activityTimerRef.current) {
+        clearInterval(activityTimerRef.current);
+        activityTimerRef.current = null;
+      }
+    };
+  }, [cameraRunning, faceEnabled, poseEnabled, gestureEnabled, fetchActivityInsights]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (activityTimerRef.current) {
+        clearInterval(activityTimerRef.current);
+        activityTimerRef.current = null;
       }
     };
   }, []);
@@ -1167,6 +1301,7 @@ function MediaPipeRecognition() {
         
         {/* Logs section at the bottom */}
         <div className="logs-section">
+          {/* Detection logs first */}
           <div className="detection-logs">
             <div className={`log-panel ${faceEnabled ? 'active' : ''}`}>
               <h3>Face Detection Log</h3>
@@ -1186,63 +1321,78 @@ function MediaPipeRecognition() {
             
             <div className={`log-panel ${gestureEnabled ? 'active' : ''}`}>
               <h3>Gesture Recognition Log</h3>
-              <div className="log-content">{gestureLog}</div>
+              <div 
+                className="log-content gesture-metrics-log"
+                dangerouslySetInnerHTML={{ __html: gestureLog }}
+              ></div>
             </div>
           </div>
           
-          {/* Add data saving status indicator */}
-          <div className="save-status-panel">
-            <h3>Data Saving Status</h3>
-            <div className="save-status-content">
-              <div className={`save-status-item ${faceEnabled ? 'active' : ''}`}>
-                <span className="save-status-type">Face:</span>
-                <span className={`save-status-badge ${dataSaveStatus.face.saving ? 'saving' : 
-                  dataSaveStatus.face.error ? 'error' : 
-                  dataSaveStatus.face.lastSaved ? 'saved' : ''}`}>
-                  {dataSaveStatus.face.saving ? 'Saving...' : 
-                   dataSaveStatus.face.error ? 'Error' : 
-                   dataSaveStatus.face.lastSaved ? 'Saved' : 'Not saved'}
-                </span>
-                {dataSaveStatus.face.lastSaved && 
-                  <span className="save-status-time">
-                    Last: {new Date(dataSaveStatus.face.lastSaved).toLocaleTimeString()}
+          {/* Data saving status button - moved below detection logs */}
+          <div className="data-save-toggle">
+            <button 
+              className="data-save-toggle-button"
+              onClick={toggleDataSaveStatus}
+            >
+              {showDataSaveStatus ? "Hide Data Saving Status" : "Show Data Saving Status"}
+            </button>
+          </div>
+          
+          {/* Add data saving status indicator (collapsed by default) */}
+          {showDataSaveStatus && (
+            <div className="save-status-panel">
+              <h3>Data Saving Status</h3>
+              <div className="save-status-content">
+                <div className={`save-status-item ${faceEnabled ? 'active' : ''}`}>
+                  <span className="save-status-type">Face:</span>
+                  <span className={`save-status-badge ${dataSaveStatus.face.saving ? 'saving' : 
+                    dataSaveStatus.face.error ? 'error' : 
+                    dataSaveStatus.face.lastSaved ? 'saved' : ''}`}>
+                    {dataSaveStatus.face.saving ? 'Saving...' : 
+                     dataSaveStatus.face.error ? 'Error' : 
+                     dataSaveStatus.face.lastSaved ? 'Saved' : 'Not saved'}
                   </span>
-                }
-              </div>
-              
-              <div className={`save-status-item ${poseEnabled ? 'active' : ''}`}>
-                <span className="save-status-type">Pose:</span>
-                <span className={`save-status-badge ${dataSaveStatus.pose.saving ? 'saving' : 
-                  dataSaveStatus.pose.error ? 'error' : 
-                  dataSaveStatus.pose.lastSaved ? 'saved' : ''}`}>
-                  {dataSaveStatus.pose.saving ? 'Saving...' : 
-                   dataSaveStatus.pose.error ? 'Error' : 
-                   dataSaveStatus.pose.lastSaved ? 'Saved' : 'Not saved'}
-                </span>
-                {dataSaveStatus.pose.lastSaved && 
-                  <span className="save-status-time">
-                    Last: {new Date(dataSaveStatus.pose.lastSaved).toLocaleTimeString()}
+                  {dataSaveStatus.face.lastSaved && 
+                    <span className="save-status-time">
+                      Last: {new Date(dataSaveStatus.face.lastSaved).toLocaleTimeString()}
+                    </span>
+                  }
+                </div>
+                
+                <div className={`save-status-item ${poseEnabled ? 'active' : ''}`}>
+                  <span className="save-status-type">Pose:</span>
+                  <span className={`save-status-badge ${dataSaveStatus.pose.saving ? 'saving' : 
+                    dataSaveStatus.pose.error ? 'error' : 
+                    dataSaveStatus.pose.lastSaved ? 'saved' : ''}`}>
+                    {dataSaveStatus.pose.saving ? 'Saving...' : 
+                     dataSaveStatus.pose.error ? 'Error' : 
+                     dataSaveStatus.pose.lastSaved ? 'Saved' : 'Not saved'}
                   </span>
-                }
-              </div>
-              
-              <div className={`save-status-item ${gestureEnabled ? 'active' : ''}`}>
-                <span className="save-status-type">Gesture:</span>
-                <span className={`save-status-badge ${dataSaveStatus.gesture.saving ? 'saving' : 
-                  dataSaveStatus.gesture.error ? 'error' : 
-                  dataSaveStatus.gesture.lastSaved ? 'saved' : ''}`}>
-                  {dataSaveStatus.gesture.saving ? 'Saving...' : 
-                   dataSaveStatus.gesture.error ? 'Error' : 
-                   dataSaveStatus.gesture.lastSaved ? 'Saved' : 'Not saved'}
-                </span>
-                {dataSaveStatus.gesture.lastSaved && 
-                  <span className="save-status-time">
-                    Last: {new Date(dataSaveStatus.gesture.lastSaved).toLocaleTimeString()}
+                  {dataSaveStatus.pose.lastSaved && 
+                    <span className="save-status-time">
+                      Last: {new Date(dataSaveStatus.pose.lastSaved).toLocaleTimeString()}
+                    </span>
+                  }
+                </div>
+                
+                <div className={`save-status-item ${gestureEnabled ? 'active' : ''}`}>
+                  <span className="save-status-type">Gesture:</span>
+                  <span className={`save-status-badge ${dataSaveStatus.gesture.saving ? 'saving' : 
+                    dataSaveStatus.gesture.error ? 'error' : 
+                    dataSaveStatus.gesture.lastSaved ? 'saved' : ''}`}>
+                    {dataSaveStatus.gesture.saving ? 'Saving...' : 
+                     dataSaveStatus.gesture.error ? 'Error' : 
+                     dataSaveStatus.gesture.lastSaved ? 'Saved' : 'Not saved'}
                   </span>
-                }
+                  {dataSaveStatus.gesture.lastSaved && 
+                    <span className="save-status-time">
+                      Last: {new Date(dataSaveStatus.gesture.lastSaved).toLocaleTimeString()}
+                    </span>
+                  }
+                </div>
               </div>
             </div>
-          </div>
+          )}
           
           {/* Debug logs panel */}
           <div className="debug-section">
@@ -1264,6 +1414,40 @@ function MediaPipeRecognition() {
                       {debugLogs.map((log, index) => (
                         <li key={index}>{log}</li>
                       ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Activity Insights panel toggle button */}
+          <div className="activity-insights-section">
+            <button 
+              className="activity-insights-toggle"
+              onClick={toggleActivityInsights}
+            >
+              {showActivityInsights ? "Hide Activity Insights" : "Show Activity Insights"}
+            </button>
+            
+            {showActivityInsights && (
+              <div className="activity-insights-panel">
+                <h3>AI Activity Insights</h3>
+                <div className="activity-insights-content">
+                  {activityInsights.length === 0 ? (
+                    <p className="no-insights">No insights available yet. Please wait a moment...</p>
+                  ) : (
+                    <ul className="insights-list">
+                      {activityInsights.map((insight, index) => {
+                        // Format the timestamp
+                        const timestamp = new Date(insight.timestamp).toLocaleTimeString();
+                        return (
+                          <li key={index} className="insight-item">
+                            <div className="insight-time">{timestamp}</div>
+                            <div className="insight-text">{insight.text}</div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>

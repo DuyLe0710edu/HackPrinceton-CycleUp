@@ -4,7 +4,7 @@ import {
   startDetection, 
   stopDetection, 
   connectToSocket,
-  getBackendInfo  // Import this properly at the top
+  getBackendInfo
 } from '../services/api';
 
 function CameraDetection({ onDetectionUpdate }) {
@@ -116,39 +116,41 @@ function CameraDetection({ onDetectionUpdate }) {
         </div>
       )}
       
-      <div className="camera-container">
-        {/* The image will display the processed frames from the backend */}
-        <img 
-          ref={imageRef} 
-          className="camera-feed" 
-          alt="Camera feed"
-          src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
-        />
-        
-        {!isStreaming && !isProcessing && (
-          <div className="camera-overlay">
-            <button onClick={handleStartDetection} className="start-button" disabled={isLoading}>
-              {isLoading ? "Connecting..." : "Start Detection"}
-            </button>
-          </div>
-        )}
-        
-        {isStreaming && isProcessing && (
-          <>
-            <div className="fps-counter">FPS: {fps}</div>
-            <div className="camera-controls">
-              <button onClick={handleStopDetection} className="stop-button">
-                Stop Detection
+      <div className="recognition-container">
+        <div className="camera-container">
+          {/* The image will display the processed frames from the backend */}
+          <img 
+            ref={imageRef} 
+            className="camera-feed"
+            alt="Camera feed"
+            src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+          />
+          
+          {!isStreaming && !isProcessing && (
+            <div className="camera-overlay">
+              <button onClick={handleStartDetection} className="start-button" disabled={isLoading}>
+                {isLoading ? "Connecting..." : "Start Detection"}
               </button>
             </div>
-          </>
-        )}
-      </div>
-      
-      <div className="camera-settings">
-        <button className="settings-button">
-          <span>⚙️</span> Detection Settings
-        </button>
+          )}
+          
+          {isStreaming && isProcessing && (
+            <>
+              <div className="fps-counter">FPS: {fps}</div>
+              <div className="camera-controls">
+                <button onClick={handleStopDetection} className="stop-button">
+                  Stop Detection
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+        
+        <div className="camera-settings">
+          <button className="settings-button">
+            <span>⚙️</span> Detection Settings
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import './Sidebar.css';
 
 function Sidebar({ isOpen, onNavigate, currentView, onCreateProfile }) {
@@ -28,11 +27,12 @@ function Sidebar({ isOpen, onNavigate, currentView, onCreateProfile }) {
                 <span className="nav-icon">📈</span>
                 <span className="nav-text">Analytics</span>
               </li>
-              <li className="nav-item">
-                <Link to="/recognition" className="nav-link">
-                  <span className="nav-icon">👋</span>
-                  <span className="nav-text">MediaPipe Recognition</span>
-                </Link>
+              <li 
+                className={`nav-item ${currentView === 'recognition' ? 'active' : ''}`}
+                onClick={() => onNavigate('recognition')}
+              >
+                <span className="nav-icon">👋</span>
+                <span className="nav-text">MediaPipe Recognition</span>
               </li>
               <li className="nav-item">
                 <span className="nav-icon">📁</span>

@@ -1,14 +1,25 @@
-flask==2.3.3
-flask-cors==4.0.0
-flask-socketio==5.3.5
-python-socketio==5.9.0
-opencv-python==4.8.0.76
-numpy==1.24.3
-ultralytics==8.0.184
+flask==2.2.3
+flask-cors==3.0.10
+# Downgrading flask-socketio to a version compatible with eventlet 0.33.3
+flask-socketio==5.1.1
+python-socketio==5.5.2
+numpy==1.26.4
+opencv-python==4.7.0.72
+ultralytics==8.0.0
 eventlet==0.33.3
-Werkzeug==2.3.7
+Werkzeug==2.2.3
 supabase==1.0.3
 python-dotenv==1.0.0
 # Alternative: Direct PostgreSQL Connection
-# psycopg2-binary==2.9.5
-# SQLAlchemy==2.0.15 
+psycopg2-binary==2.9.5
+# SQLAlchemy==2.0.15
+websockets==11.0.3
+# Using a compatible version of httpx for supabase
+httpx==0.23.3
+# Using a compatible version of protobuf for google-generativeai
+protobuf==4.25.3
+google-generativeai==0.3.1
+
+# The following packages are excluded due to incompatible dependencies:
+# - langgraph-sdk (requires httpx>=0.25.2, conflicts with supabase)
+# - grpcio-tools (requires protobuf>=5.26.1, conflicts with google-generativeai) 
