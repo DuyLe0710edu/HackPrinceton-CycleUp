@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import './KindergartenAssistant.css';
 import mediaStateService from '../services/mediaStateService';
 
+// ResponsiveVoice API key - for a real app, use an environment variable
+const RESPONSIVE_VOICE_API_KEY = "OJj1V3xf"; // This is a free key for temporary testing only
+
 const KindergartenAssistant = ({ onSendMessage }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [messageHistory, setMessageHistory] = useState([
@@ -12,10 +15,12 @@ const KindergartenAssistant = ({ onSendMessage }) => {
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Add state for text-to-speech
-  const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
+  // Add state for text-to-speech - now enabled by default
+  const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speechError, setSpeechError] = useState(null);
+  const [responsiveVoiceLoaded, setResponsiveVoiceLoaded] = useState(false);
+  const [isLoadingVoice, setIsLoadingVoice] = useState(true);
   
   // Local state for camera data from service
   const [detectionStats, setDetectionStats] = useState({
@@ -31,56 +36,129 @@ const KindergartenAssistant = ({ onSendMessage }) => {
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
   
   const messagesEndRef = useRef(null);
-  const speechSynthesisRef = useRef(null);
-  const speechInitializedRef = useRef(false);
   const componentMountedRef = useRef(true);
   
-  // Initialize speech synthesis with proper error handling
+  // Load ResponsiveVoice script
   useEffect(() => {
-    const initializeSpeechSynthesis = () => {
+    const loadResponsiveVoice = () => {
       try {
-        // Check if speech synthesis is available in this browser
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-          speechSynthesisRef.current = window.speechSynthesis;
-          
-          // Force load voices - needed in some browsers
-          speechSynthesisRef.current.getVoices();
-          
-          // Listen for voices changed event (important for Chrome)
-          window.speechSynthesis.onvoiceschanged = () => {
-            if (componentMountedRef.current && !speechInitializedRef.current) {
-              speechInitializedRef.current = true;
-              console.log("Speech synthesis initialized with", speechSynthesisRef.current.getVoices().length, "voices");
-            }
-          };
-          
-          // If voices are already available, mark as initialized
-          if (speechSynthesisRef.current.getVoices().length > 0) {
-            speechInitializedRef.current = true;
-            console.log("Speech synthesis initialized immediately with", speechSynthesisRef.current.getVoices().length, "voices");
-          }
-          
+        setIsLoadingVoice(true);
+        
+        // Check if ResponsiveVoice is already loaded
+        if (window.responsiveVoice) {
+          console.log("ResponsiveVoice already loaded");
+          setResponsiveVoiceLoaded(true);
+          setIsLoadingVoice(false);
           setSpeechError(null);
-        } else {
-          console.warn("Speech synthesis not supported in this browser");
-          setSpeechError("Speech synthesis not supported in your browser");
+          
+          // Try to speak the greeting message
+          if (isSpeechEnabled && messageHistory.length > 0) {
+            const firstMessage = messageHistory[0];
+            if (firstMessage.sender === 'assistant') {
+              speakTextWithFallback(firstMessage.text);
+            }
+          }
+          return;
         }
+        
+        console.log("Loading ResponsiveVoice script...");
+        const script = document.createElement('script');
+        script.src = `https://code.responsivevoice.org/responsivevoice.js?key=${RESPONSIVE_VOICE_API_KEY}`;
+        script.async = true;
+        
+        script.onload = () => {
+          if (componentMountedRef.current) {
+            console.log("ResponsiveVoice loaded successfully");
+            setResponsiveVoiceLoaded(true);
+            setIsLoadingVoice(false);
+            setSpeechError(null);
+            
+            // Initialize ResponsiveVoice if needed
+            if (window.responsiveVoice && !window.responsiveVoice.isInitialized()) {
+              window.responsiveVoice.init();
+            }
+            
+            // Try to speak the greeting message
+            if (isSpeechEnabled && messageHistory.length > 0) {
+              const firstMessage = messageHistory[0];
+              if (firstMessage.sender === 'assistant') {
+                speakTextWithFallback(firstMessage.text);
+              }
+            }
+          }
+        };
+        
+        script.onerror = (error) => {
+          console.error("Error loading ResponsiveVoice:", error);
+          if (componentMountedRef.current) {
+            setSpeechError("Could not load voice service. Using browser's built-in voice instead.");
+            setResponsiveVoiceLoaded(false);
+            setIsLoadingVoice(false);
+            
+            // Try to speak with native speech synthesis as fallback
+            if (isSpeechEnabled && messageHistory.length > 0) {
+              const firstMessage = messageHistory[0];
+              if (firstMessage.sender === 'assistant') {
+                speakWithNativeSynthesis(firstMessage.text);
+              }
+            }
+          }
+        };
+        
+        // Set a timeout to prevent infinite loading state
+        setTimeout(() => {
+          if (componentMountedRef.current && isLoadingVoice) {
+            setIsLoadingVoice(false);
+            if (!responsiveVoiceLoaded) {
+              setSpeechError("Voice service is taking too long to load. Using browser's built-in voice instead.");
+              // Try native speech synthesis as fallback
+              if (isSpeechEnabled && messageHistory.length > 0) {
+                const firstMessage = messageHistory[0];
+                if (firstMessage.sender === 'assistant') {
+                  speakWithNativeSynthesis(firstMessage.text);
+                }
+              }
+            }
+          }
+        }, 5000);
+        
+        document.body.appendChild(script);
+        
+        // Clean up function to remove the script when component unmounts
+        return () => {
+          if (document.body.contains(script)) {
+            document.body.removeChild(script);
+          }
+        };
       } catch (error) {
-        console.error("Error initializing speech synthesis:", error);
-        setSpeechError(`Error initializing speech: ${error.message}`);
+        console.error("Error setting up ResponsiveVoice:", error);
+        setSpeechError(`Error setting up voice: ${error.message}`);
+        setResponsiveVoiceLoaded(false);
+        setIsLoadingVoice(false);
       }
     };
     
-    initializeSpeechSynthesis();
+    loadResponsiveVoice();
     
     // Clean up on unmount
     return () => {
       componentMountedRef.current = false;
-      if (speechSynthesisRef.current) {
+      
+      // Cancel any ongoing speech
+      if (window.responsiveVoice && window.responsiveVoice.isPlaying()) {
         try {
-          speechSynthesisRef.current.cancel();
+          window.responsiveVoice.cancel();
         } catch (e) {
           console.error("Error canceling speech on unmount:", e);
+        }
+      }
+      
+      // Cancel native speech as well if it's being used
+      if (window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {
+          console.error("Error canceling native speech on unmount:", e);
         }
       }
     };
@@ -136,68 +214,44 @@ const KindergartenAssistant = ({ onSendMessage }) => {
     if (isSpeechEnabled && messageHistory.length > 0) {
       const lastMessage = messageHistory[messageHistory.length - 1];
       if (lastMessage.sender === 'assistant' && !lastMessage.typing) {
-        speakText(lastMessage.text);
+        speakTextWithFallback(lastMessage.text);
       }
     }
   }, [messageHistory, isSpeechEnabled]);
   
-  // Function to speak text using Web Speech API with robust error handling
-  const speakText = (text) => {
-    // Reset any previous errors
-    setSpeechError(null);
-    
-    // Check if speech synthesis is available and initialized
-    if (!speechSynthesisRef.current || !speechInitializedRef.current) {
-      console.warn("Speech synthesis not initialized yet or not available");
-      setSpeechError("Speech not available. Please check your browser settings.");
+  // Native speech synthesis fallback when ResponsiveVoice isn't available
+  const speakWithNativeSynthesis = (text) => {
+    if (!window.speechSynthesis) {
+      console.warn("Native speech synthesis not available");
+      setSpeechError("Voice playback is not supported in your browser.");
       return;
     }
     
     try {
-      // Try to cancel any ongoing speech
-      try {
-        speechSynthesisRef.current.cancel();
-      } catch (e) {
-        console.warn("Error canceling previous speech:", e);
-      }
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
       
-      // Create a new utterance with proper error handling
+      // Create a new speech utterance
       const utterance = new SpeechSynthesisUtterance(text);
       
-      // Set properties for a charming kindergarten teacher voice
-      utterance.rate = 0.9; // Slightly slower than normal
-      utterance.pitch = 1.2; // Slightly higher pitch
-      utterance.volume = 1.0; // Full volume
+      // Set properties for a friendly voice
+      utterance.rate = 0.9;
+      utterance.pitch = 1.1;
+      utterance.volume = 1.0;
       
-      // Get available voices safely
-      let voices = [];
-      try {
-        voices = speechSynthesisRef.current.getVoices();
-      } catch (e) {
-        console.warn("Error getting voices:", e);
-      }
-      
-      // Try to find a friendly, warm female voice
-      const preferredVoices = voices.filter(voice => 
-        (voice.name.includes('female') || 
-         voice.name.includes('girl') || 
-         voice.name.includes('Karen') || 
-         voice.name.includes('Samantha') || 
-         voice.name.includes('Victoria')) && 
-        voice.lang.includes('en')
+      // Set voice if available
+      const voices = window.speechSynthesis.getVoices();
+      const femaleVoice = voices.find(voice => 
+        voice.name.includes('female') || 
+        voice.name.includes('girl') || 
+        voice.name.includes('woman')
       );
       
-      if (preferredVoices.length > 0) {
-        utterance.voice = preferredVoices[0];
-      } else if (voices.length > 0) {
-        // Fallback to any English voice if no female voice is found
-        const englishVoices = voices.filter(voice => voice.lang.includes('en'));
-        if (englishVoices.length > 0) {
-          utterance.voice = englishVoices[0];
-        }
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
       }
       
-      // Add event listeners with error handling
+      // Add event listeners
       utterance.onstart = () => {
         if (componentMountedRef.current) {
           setIsSpeaking(true);
@@ -211,28 +265,84 @@ const KindergartenAssistant = ({ onSendMessage }) => {
       };
       
       utterance.onerror = (event) => {
-        console.error("Speech synthesis error:", event);
+        console.error("Native speech error:", event);
         if (componentMountedRef.current) {
           setIsSpeaking(false);
-          setSpeechError(`Speech error: ${event.error || 'Unknown error'}`);
+          setSpeechError("Voice playback error with native speech.");
         }
       };
       
-      // Start speaking with timeout safeguard
-      speechSynthesisRef.current.speak(utterance);
-      
-      // Set a timeout to check if speaking actually started
-      setTimeout(() => {
-        if (componentMountedRef.current && !speechSynthesisRef.current.speaking && isSpeechEnabled) {
-          setSpeechError("Speech failed to start. Try refreshing the page.");
-        }
-      }, 1000);
+      // Speak the text
+      window.speechSynthesis.speak(utterance);
       
     } catch (error) {
-      console.error("Error during speech synthesis:", error);
+      console.error("Error with native speech synthesis:", error);
       setSpeechError(`Speech error: ${error.message}`);
       setIsSpeaking(false);
     }
+  };
+  
+  // Function to speak text - tries ResponsiveVoice first, falls back to native synthesis
+  const speakTextWithFallback = (text) => {
+    // Reset any previous errors
+    setSpeechError(null);
+    
+    // Check if ResponsiveVoice is loaded and use it
+    if (window.responsiveVoice && responsiveVoiceLoaded) {
+      try {
+        // Cancel any ongoing speech
+        if (window.responsiveVoice.isPlaying()) {
+          window.responsiveVoice.cancel();
+        }
+        
+        // Set speaking state
+        setIsSpeaking(true);
+        
+        // Use a warm, friendly kindergarten teacher voice
+        window.responsiveVoice.speak(
+          text,
+          "UK English Female", // Using UK English Female for a warm, clear voice
+          {
+            pitch: 1.1,     // Slightly higher pitch for friendliness
+            rate: 0.9,      // Slightly slower for clarity
+            volume: 1.0,    // Full volume
+            onstart: () => {
+              if (componentMountedRef.current) {
+                setIsSpeaking(true);
+              }
+            },
+            onend: () => {
+              if (componentMountedRef.current) {
+                setIsSpeaking(false);
+              }
+            },
+            onerror: (error) => {
+              console.error("ResponsiveVoice error:", error);
+              if (componentMountedRef.current) {
+                setIsSpeaking(false);
+                setSpeechError("Using browser's built-in voice instead.");
+                // Try native speech synthesis as fallback
+                speakWithNativeSynthesis(text);
+              }
+            }
+          }
+        );
+        
+        return;
+      } catch (error) {
+        console.error("Error during ResponsiveVoice speech:", error);
+        setSpeechError(`Falling back to browser's voice: ${error.message}`);
+        // Continue to fallback
+      }
+    }
+    
+    // If ResponsiveVoice failed or isn't available, use native speech synthesis
+    speakWithNativeSynthesis(text);
+  };
+  
+  // Function to speak text (kept for compatibility but now calls speakTextWithFallback)
+  const speakText = (text) => {
+    speakTextWithFallback(text);
   };
   
   // Toggle speech on/off
@@ -244,68 +354,126 @@ const KindergartenAssistant = ({ onSendMessage }) => {
     setIsSpeechEnabled(newState);
     
     // If turning off, cancel any ongoing speech
-    if (!newState && speechSynthesisRef.current) {
-      try {
-        speechSynthesisRef.current.cancel();
-        setIsSpeaking(false);
-      } catch (e) {
-        console.warn("Error canceling speech:", e);
+    if (!newState) {
+      // Cancel ResponsiveVoice if available
+      if (window.responsiveVoice) {
+        try {
+          if (window.responsiveVoice.isPlaying()) {
+            window.responsiveVoice.cancel();
+          }
+        } catch (e) {
+          console.warn("Error canceling ResponsiveVoice speech:", e);
+        }
       }
+      
+      // Also cancel native speech synthesis if it's being used
+      if (window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {
+          console.warn("Error canceling native speech:", e);
+        }
+      }
+      
+      setIsSpeaking(false);
     }
     
     // If turning on, try to speak the last assistant message
-    if (newState) {
-      if (!speechSynthesisRef.current || !speechInitializedRef.current) {
-        setSpeechError("Speech not available in your browser");
-        return;
-      }
-      
-      if (messageHistory.length > 0) {
-        const lastAssistantMessage = [...messageHistory]
-          .reverse()
-          .find(msg => msg.sender === 'assistant' && !msg.typing);
-          
-        if (lastAssistantMessage) {
-          speakText(lastAssistantMessage.text);
-        }
+    if (newState && messageHistory.length > 0) {
+      const lastAssistantMessage = [...messageHistory]
+        .reverse()
+        .find(msg => msg.sender === 'assistant' && !msg.typing);
+        
+      if (lastAssistantMessage) {
+        speakTextWithFallback(lastAssistantMessage.text);
       }
     }
   };
   
   // Stop speaking
   const stopSpeaking = () => {
-    if (speechSynthesisRef.current) {
+    // Try to stop ResponsiveVoice
+    if (window.responsiveVoice) {
       try {
-        speechSynthesisRef.current.cancel();
-        setIsSpeaking(false);
+        if (window.responsiveVoice.isPlaying()) {
+          window.responsiveVoice.cancel();
+        }
       } catch (e) {
-        console.error("Error stopping speech:", e);
-        setSpeechError(`Error stopping speech: ${e.message}`);
+        console.error("Error stopping ResponsiveVoice speech:", e);
       }
     }
+    
+    // Also try to stop native speech synthesis
+    if (window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        console.error("Error stopping native speech:", e);
+      }
+    }
+    
+    setIsSpeaking(false);
   };
   
   // Retry speech if there was an error
   const retrySpeech = () => {
     setSpeechError(null);
     
-    // Reinitialize the speech synthesis
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      speechSynthesisRef.current = window.speechSynthesis;
-      speechInitializedRef.current = true;
+    // Check if ResponsiveVoice is available
+    if (!window.responsiveVoice || !responsiveVoiceLoaded) {
+      // Try to reload the script
+      setIsLoadingVoice(true);
+      const script = document.createElement('script');
+      script.src = `https://code.responsivevoice.org/responsivevoice.js?key=${RESPONSIVE_VOICE_API_KEY}`;
+      script.async = true;
       
-      // Try speaking the last message again
-      if (messageHistory.length > 0) {
+      script.onload = () => {
+        if (componentMountedRef.current) {
+          setResponsiveVoiceLoaded(true);
+          setIsLoadingVoice(false);
+          
+          // Try speaking the last message again if speech is enabled
+          if (isSpeechEnabled && messageHistory.length > 0) {
+            const lastAssistantMessage = [...messageHistory]
+              .reverse()
+              .find(msg => msg.sender === 'assistant' && !msg.typing);
+              
+            if (lastAssistantMessage) {
+              speakTextWithFallback(lastAssistantMessage.text);
+            }
+          }
+        }
+      };
+      
+      script.onerror = () => {
+        if (componentMountedRef.current) {
+          setIsLoadingVoice(false);
+          setSpeechError("Using browser's built-in voice instead.");
+          // Try with native speech as fallback
+          if (isSpeechEnabled && messageHistory.length > 0) {
+            const lastAssistantMessage = [...messageHistory]
+              .reverse()
+              .find(msg => msg.sender === 'assistant' && !msg.typing);
+              
+            if (lastAssistantMessage) {
+              speakWithNativeSynthesis(lastAssistantMessage.text);
+            }
+          }
+        }
+      };
+      
+      document.body.appendChild(script);
+    } else {
+      // If ResponsiveVoice is already available, just try speaking again
+      if (isSpeechEnabled && messageHistory.length > 0) {
         const lastAssistantMessage = [...messageHistory]
           .reverse()
           .find(msg => msg.sender === 'assistant' && !msg.typing);
           
-        if (lastAssistantMessage && isSpeechEnabled) {
-          speakText(lastAssistantMessage.text);
+        if (lastAssistantMessage) {
+          speakTextWithFallback(lastAssistantMessage.text);
         }
       }
-    } else {
-      setSpeechError("Speech synthesis not supported in your browser");
     }
   };
 
@@ -349,13 +517,7 @@ const KindergartenAssistant = ({ onSendMessage }) => {
     .then(response => response.json())
     .then(data => {
       // Stop speaking previous response
-      if (isSpeechEnabled && speechSynthesisRef.current) {
-        try {
-          speechSynthesisRef.current.cancel();
-        } catch (e) {
-          console.warn("Error canceling previous speech:", e);
-        }
-      }
+      stopSpeaking();
       
       // Remove the typing indicator
       setMessageHistory(prev => prev.filter(msg => !msg.typing));
@@ -379,13 +541,7 @@ const KindergartenAssistant = ({ onSendMessage }) => {
     })
     .catch(error => {
       // Stop speaking previous response
-      if (isSpeechEnabled && speechSynthesisRef.current) {
-        try {
-          speechSynthesisRef.current.cancel();
-        } catch (e) {
-          console.warn("Error canceling previous speech:", e);
-        }
-      }
+      stopSpeaking();
       
       // Remove the typing indicator
       setMessageHistory(prev => prev.filter(msg => !msg.typing));
@@ -486,8 +642,15 @@ const KindergartenAssistant = ({ onSendMessage }) => {
       
       {/* Chat Area */}
       <div className="assistant-chat">
-        {/* Add voice control buttons */}
+        {/* Add voice control buttons - now always clickable */}
         <div className="speech-controls">
+          {isLoadingVoice && (
+            <div className="voice-loading">
+              <div className="loading-spinner"></div>
+              <span>Loading voice...</span>
+            </div>
+          )}
+          
           {speechError && (
             <div className="speech-error">
               <span className="error-message">{speechError}</span>
@@ -505,7 +668,6 @@ const KindergartenAssistant = ({ onSendMessage }) => {
             className={`speech-toggle-button ${isSpeechEnabled ? 'active' : ''}`}
             onClick={toggleSpeech}
             title={isSpeechEnabled ? "Turn voice off" : "Turn voice on"}
-            disabled={!speechInitializedRef.current}
           >
             {isSpeechEnabled ? (
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

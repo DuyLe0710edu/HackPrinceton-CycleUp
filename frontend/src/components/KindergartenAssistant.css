@@ -368,88 +368,174 @@
   }
 }
 
-/* Add styles for speech controls */
+/* Speech Controls Styling */
 .speech-controls {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
-  padding: 10px 20px;
-  gap: 10px;
+  padding: 8px 16px;
   background-color: #f9f9f9;
   border-bottom: 1px solid #e0e0e0;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
-.speech-toggle-button, 
-.stop-speech-button {
+.speech-toggle-button, .stop-speech-button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   border-radius: 20px;
-  border: none;
-  background-color: #f0f8f0;
-  color: #388e3c;
+  border: 1px solid #4CAF50;
+  background-color: white;
+  color: #4CAF50;
+  font-weight: 500;
+  font-size: 0.9rem;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.3s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
 }
 
-.speech-toggle-button:hover,
-.stop-speech-button:hover {
-  background-color: #e8f5e9;
+.speech-toggle-button svg, .stop-speech-button svg {
+  margin-right: 8px;
+}
+
+.speech-toggle-button:hover, .stop-speech-button:hover {
+  background-color: #f0f8f0;
 }
 
 .speech-toggle-button.active {
-  background-color: #4caf50;
+  background-color: #4CAF50;
   color: white;
 }
 
 .speech-toggle-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  border-color: #aaaaaa;
+  color: #aaaaaa;
+}
+
+.speech-toggle-button:disabled svg {
+  opacity: 0.6;
 }
 
 .stop-speech-button {
-  background-color: #ffebee;
-  color: #d32f2f;
+  border-color: #f44336;
+  color: #f44336;
 }
 
 .stop-speech-button:hover {
-  background-color: #ffcdd2;
+  background-color: #ffebee;
 }
 
-/* Speech error styles */
+/* Speech error styling */
 .speech-error {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background-color: #fff8e1;
-  border-radius: 20px;
-  border: 1px solid #ffe082;
-  margin-right: auto;
-  max-width: 300px;
+  background-color: #ffebee;
+  border-radius: 4px;
+  padding: 6px 12px;
+  margin-right: 10px;
+  flex-grow: 1;
 }
 
 .error-message {
-  font-size: 13px;
-  color: #ff8f00;
-  flex: 1;
+  color: #d32f2f;
+  font-size: 0.9rem;
+  margin-right: 10px;
 }
 
 .retry-button {
-  background-color: #ffa000;
+  background-color: #f44336;
   color: white;
   border: none;
-  padding: 5px 10px;
   border-radius: 4px;
-  font-size: 12px;
+  padding: 4px 8px;
   cursor: pointer;
+  font-size: 0.8rem;
   transition: background-color 0.2s;
 }
 
 .retry-button:hover {
-  background-color: #ff8f00;
+  background-color: #d32f2f;
+}
+
+/* Loading indicator for ResponsiveVoice */
+.voice-loading {
+  display: flex;
+  align-items: center;
+  color: #757575;
+  font-size: 0.85rem;
+  margin-right: 10px;
+  padding: 4px 8px;
+  background-color: #f0f8f0;
+  border-radius: 16px;
+}
+
+.voice-loading .loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  border: 2px solid rgba(76, 175, 80, 0.2);
+  border-top-color: #4CAF50;
+  border-radius: 50%;
+  animation: voice-spinner 1s linear infinite;
+}
+
+@keyframes voice-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Voice selection dropdown if needed */
+.voice-selector {
+  padding: 4px 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background-color: white;
+}
+
+/* Add to existing chat styling to accommodate voice controls */
+.assistant-chat {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.chat-messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .speech-controls {
+    padding: 8px;
+  }
+  
+  .speech-toggle-button, .stop-speech-button {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+  
+  .speech-toggle-button span, .stop-speech-button span {
+    display: none;
+  }
+  
+  .speech-toggle-button svg, .stop-speech-button svg {
+    margin-right: 0;
+  }
+  
+  .speech-error {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .error-message {
+    margin-bottom: 6px;
+    margin-right: 0;
+  }
 } 
