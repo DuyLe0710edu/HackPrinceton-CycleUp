@@ -16,6 +16,17 @@ import LandingPage from './components/LandingPage';
 import Stories from './components/Stories';
 import KindergartenAssistant from './components/KindergartenAssistant';
 
+// Add styles for the components layer
+const overlayStyles = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  zIndex: 10,
+  backgroundColor: '#fff'
+};
+
 // Wrapped component that can use Router hooks
 const RoutedAppLayout = ({ children }) => {
   const [detections, setDetections] = useState([]);
@@ -24,6 +35,9 @@ const RoutedAppLayout = ({ children }) => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   
+  // Track if MediaPipe has been initialized
+  const [mediaPipeInitialized, setMediaPipeInitialized] = useState(false);
+  
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -31,6 +45,7 @@ const RoutedAppLayout = ({ children }) => {
   useEffect(() => {
     if (location.pathname === '/recognition') {
       setCurrentView('recognition');
+      setMediaPipeInitialized(true);
     } else if (location.pathname === '/dashboard') {
       setCurrentView('detection');
     } else if (location.pathname === '/stories') {
@@ -68,6 +83,7 @@ const RoutedAppLayout = ({ children }) => {
       // Keep on same route but change view
       navigate('/dashboard');
     } else if (view === 'recognition') {
+      setMediaPipeInitialized(true);
       navigate('/recognition');
     } else if (view === 'stories') {
       navigate('/stories');
@@ -99,8 +115,32 @@ const RoutedAppLayout = ({ children }) => {
           onCreateProfile={openProfileModal}
         />
         <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
-          <div className="content-wrapper">
-            {children || (
+          <div className="content-wrapper" style={{ position: 'relative' }}>
+            {/* Always render MediaPipeWrapper after it's been initialized */}
+            {mediaPipeInitialized && (currentView === 'recognition' || currentView === 'aiassistant') && (
+              <div style={currentView === 'aiassistant' ? { position: 'relative', zIndex: 1 } : {}}>
+                <LiveKitIntegrator
+                  onMessageReceived={(message) => {
+                    console.log("Received message from LiveKit:", message);
+                  }}
+                >
+                  <MediaPipeWrapper />
+                </LiveKitIntegrator>
+              </div>
+            )}
+            
+            {/* Layer the Kindergarten Assistant on top */}
+            {currentView === 'aiassistant' && (
+              <div style={overlayStyles}>
+                <KindergartenAssistant onSendMessage={(message) => {}} />
+              </div>
+            )}
+          
+            {/* Only show children for routes other than recognition and aiassistant */}
+            {children && currentView !== 'recognition' && currentView !== 'aiassistant' && children}
+            
+            {/* Show these components only for views that don't have specific routes */}
+            {!children && (
               currentView === 'detection' ? (
                 <>
                   <CameraDetection onDetectionUpdate={handleDetectionUpdate} />
@@ -133,27 +173,13 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/dashboard" element={<RoutedAppLayout />} />
-        <Route path="/recognition" element={
-          <RoutedAppLayout>
-            <LiveKitIntegrator
-              onMessageReceived={(message) => {
-                console.log("Received message from LiveKit:", message);
-              }}
-            >
-              <MediaPipeWrapper />
-            </LiveKitIntegrator>
-          </RoutedAppLayout>
-        } />
+        <Route path="/recognition" element={<RoutedAppLayout />} />
         <Route path="/stories" element={
           <RoutedAppLayout>
             <Stories />
           </RoutedAppLayout>
         } />
-        <Route path="/aiassistant" element={
-          <RoutedAppLayout>
-            <KindergartenAssistant onSendMessage={(message) => {}} />
-          </RoutedAppLayout>
-        } />
+        <Route path="/aiassistant" element={<RoutedAppLayout />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
